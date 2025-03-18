@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <title>Forum - Posts</title>
+</head>
+
+<body>
+    <header>
+        <div class="hamburger" onclick="toggleMenu()">
+            <i class="fas fa-bars"></i>
+        </div>
+        <div class="logo">
+            <a href="/" class="logo-link">Forum</a>
+        </div>
+
+        <nav>
+            {{if .IsLoggedIn}}
+            <div class="profile-icon" style="position: relative;">
+                <a href="/profile" class="material-icons"
+                    style="font-size:30px; color: #4A7C8C; margin-top: 10px; vertical-align: middle;">person</a>
+            </div>
+            <a href="#" class="auth-button create-post" onclick="toggleCreatePost()">Create Post</a>
+            <a href="/logout" class="logout-icon" title="Logout">
+                <i class="fas fa-sign-out-alt" style="font-size: 24px; color: #4A7C8C; margin-top: 10px;"></i>
+            </a>
+            {{else}}
+            <a href="/login" class="auth-button login">Login</a>
+            <a href="/register" class="auth-button register">Register</a>
+            {{end}}
+        </nav>
+    </header>
+    <div class="container">
+        <aside class="sidebar" id="sidebar">
+            <h3>Categories</h3>
+            <ul>
+                <li><a href="/">All Posts</a></li>
+                <li><a href="/filter?category=technology">Technology</a></li>
+                <li><a href="/filter?category=general">General</a></li>
+                <li><a href="/filter?category=lifestyle">Lifestyle</a></li>
+                <li><a href="/filter?category=entertainment">Entertainment</a></li>
+                <li><a href="/filter?category=gaming">Gaming</a></li>
+                <li><a href="/filter?category=food">Food</a></li>
+                <li><a href="/filter?category=business">Business</a></li>
+                <li><a href="/filter?category=religion">Religion</a></li>
+                <li><a href="/filter?category=health">Health</a></li>
+                <li><a href="/filter?category=music">Music</a></li>
+                <li><a href="/filter?category=sports">Sports</a></li>
+                <li><a href="/filter?category=beauty">Beauty</a></li>
+                <li><a href="/filter?category=jobs">Jobs</a></li>
+            </ul>
+            <!-- <div class="sidebar-footer">
+                {{if .IsLoggedIn}}
+                <a href="/logout" class="logout-link">Logout</a>
+                {{end}}
+            </div> -->
+        </aside>
+        <main>
+            {{if .IsLoggedIn}}
+            <div id="createPostForm" style="display: none;">
+                <h1>Create a New Post</h1>
+                <form method="POST" action="/post" enctype="multipart/form-data" onsubmit="return validateCategories()">
+                    <label for="title">Title:</label>
+                    <input type="text" id="title" name="title" required>
+                    <br>
+
+                    <label for="content">Content:</label>
+                    <textarea id="content" name="content" required></textarea>
+                    <br>
+
+                    <label for="image">Image:</label>
+                    <input type="file" id="image" name="image" accept="image/jpeg, image/png, image/gif">
+                    <br>
+
+                    <label for="category">Category:</label>
+                    <div id="category" name="category" class="checkbox-group">
+                        <label><input type="checkbox" name="category" value="technology"> Technology</label>
+                        <label><input type="checkbox" name="category" value="general"> General</label>
+                        <label><input type="checkbox" name="category" value="lifestyle"> Lifestyle</label>
+                        <label><input type="checkbox" name="category" value="entertainment"> Entertainment</label>
+                        <label><input type="checkbox" name="category" value="gaming"> Gaming</label>
+                        <label><input type="checkbox" name="category" value="food"> Food</label>
+                        <label><input type="checkbox" name="category" value="business"> Business</label>
+                        <label><input type="checkbox" name="category" value="religion"> Religion</label>
+                        <label><input type="checkbox" name="category" value="health"> Health</label>
+                        <label><input type="checkbox" name="category" value="music"> Music</label>
+                        <label><input type="checkbox" name="category" value="sports"> Sports</label>
+                        <label><input type="checkbox" name="category" value="beauty"> Beauty</label>
+                        <label><input type="checkbox" name="category" value="jobs"> Jobs</label>
+                    </div>
+                    <br>
+
+                    <button type="submit">Post</button>
+                    <button type="button" onclick="toggleCreatePost()">Cancel</button>
+                </form>
+            </div>
+            {{end}}
+
+            <h1 id="postsHeading">
+                {{if .SelectedCategory}}
+                {{.SelectedCategory}}
+                {{else}}
+                All Posts
+                {{end}}
+            </h1>
+            <div id="posts">
+                {{if .Posts}}
+                {{range .Posts}}
+                <div class="post" data-category="{{.Categories}}">
+                    <p class="posted-on">{{.CreatedAtHuman}}</p>
+                    <strong>
+                        <p>{{.Username}}</p>
+                    </strong>
+                    <h3>{{.Title}}</h3>
+                    <p>{{.Content}}</p>
+                    {{if .ImagePath}} <!-- Display image if it exists -->
+                    <img src="{{.ImagePath}}" alt="Post Image" class="post-image">
+                    {{end}}
+                    <p class="categories">Categories: <span>{{.Categories}}</span></p>
+                    <div class="post-actions">
+                        <button class="like-button" data-post-id="{{.ID}}" onclick="toggleLike('{{.ID}}', true)">
+                            <i class="fas fa-thumbs-up"></i> <span class="like-count">{{.LikeCount}}</span>
+                        </button>
+                        <button class="dislike-button" data-post-id="{{.ID}}" onclick="toggleLike('{{.ID}}', false)">
+                            <i class="fas fa-thumbs-down"></i> <span class="dislike-count">{{.DislikeCount}}</span>
+                        </button>
+                        <button class="comment-button" onclick="toggleCommentForm('{{.ID}}')">
+                            <i class="fas fa-comment"></i> Comments
+                        </button>
+                    </div>
+
+                    <!-- Comments Section -->
+                    <div class="comments-section" id="comments-{{.ID}}" style="display: none;">
+                        <!-- Comment Form -->
+                        <div class="comment-form" id="comment-form-{{.ID}}" style="display: none;">
+                            {{if $.IsLoggedIn}}
+                            <form method="POST" action="/comment" onsubmit="return validateCommentForm(event, this)">
+                                <input type="hidden" name="post_id" value="{{.ID}}">
+                                <textarea name="content" placeholder="Write your comment..." required></textarea>
+                                <button type="submit">Comment</button>
+                            </form>
+                            {{else}}
+                            <p>Please <a href="/login">login</a> to comment.</p>
+                            {{end}}
+                        </div>
+
+                        {{if .Comments}}
+                        {{range .Comments}}
+                        <div class="comment" data-comment-id="{{.ID}}">
+                            <div class="comment-meta">
+                                <span class="comment-author">Posted by {{.Username}}</span>
+                                <span class="comment-date">{{.CreatedAtHuman}}</span>
+                            </div>
+                            <div class="comment-content">{{.Content}}</div>
+                            {{if $.IsLoggedIn}}
+                            <div class="comment-actions">
+                                <button class="like-button" data-comment-id="{{.ID}}"
+                                    onclick="toggleCommentLike('{{.ID}}', true)">
+                                    <i class="fas fa-thumbs-up"></i> <span class="like-count">{{.LikeCount}}</span>
+                                </button>
+                                <button class="dislike-button" data-comment-id="{{.ID}}"
+                                    onclick="toggleCommentLike('{{.ID}}', false)">
+                                    <i class="fas fa-thumbs-down"></i> <span
+                                        class="dislike-count">{{.DislikeCount}}</span>
+                                </button>
+                                <button class="reply-button" onclick="toggleReplyForm('{{.ID}}')">
+                                    Reply{{if gt .ReplyCount 0}} ({{.ReplyCount}}){{end}}
+                                </button>
+                            </div>
+                            <div class="reply-form" id="reply-form-{{.ID}}" style="display: none;">
+                                <form method="POST" action="/comment">
+                                    <input type="hidden" name="post_id" value="{{.PostID}}">
+                                    <input type="hidden" name="parent_id" value="{{.ID}}">
+                                    <textarea name="content" placeholder="Write your reply..." required></textarea>
+                                    <button type="submit">Reply</button>
+                                </form>
+                            </div>
+                            {{end}}
+
+                            <!-- Nested Replies -->
+                            {{if .Replies}}
+                            <div class="replies">
+                                {{range .Replies}}
+                                <div class="comment reply" data-comment-id="{{.ID}}">
+                                    <div class="comment-meta">
+                                        <span class="comment-author">Posted by {{.Username}}</span>
+                                        <span class="comment-date">{{.CreatedAtHuman}}</span>
+                                    </div>
+                                    <div class="comment-content">{{.Content}}</div>
+                                    {{if $.IsLoggedIn}}
+                                    <div class="comment-actions">
+                                        <button class="like-button" data-comment-id="{{.ID}}"
+                                            onclick="toggleCommentLike('{{.ID}}', true)">
+                                            <i class="fas fa-thumbs-up"></i> <span
+                                                class="like-count">{{.LikeCount}}</span>
+                                        </button>
+                                        <button class="dislike-button" data-comment-id="{{.ID}}"
+                                            onclick="toggleCommentLike('{{.ID}}', false)">
+                                            <i class="fas fa-thumbs-down"></i> <span
+                                                class="dislike-count">{{.DislikeCount}}</span>
+                                        </button>
+                                    </div>
+                                    {{end}}
+                                </div>
+                                {{end}}
+                            </div>
+                            {{end}}
+                        </div>
+                        {{end}}
+                        {{end}}
+                    </div>
+                </div>
+                {{end}}
+                {{else}}
+                <p>No posts available.</p>
+                {{end}}
+            </div>
+        </main>
+    </div>
+    <script>
+        let isProcessing = false; // Debounce flag
+
+        function toggleLike(postId, isLike) {
+            if (isProcessing) return; // Prevent multiple rapid clicks
+            isProcessing = true;
+
+            fetch('/like', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `post_id=${postId}&is_like=${isLike}`
+            })
+                .then(response => {
+                    if (response.status === 401) {
+                        // User is not logged in, redirect to login page
+                        window.location.href = '/login';
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.success) {
+                        // Update the like and dislike counts
+                        const likeCountElement = document.querySelector(`.like-button[data-post-id="${postId}"] .like-count`);
+                        const dislikeCountElement = document.querySelector(`.dislike-button[data-post-id="${postId}"] .dislike-count`);
+
+                        likeCountElement.textContent = data.like_count;
+                        dislikeCountElement.textContent = data.dislike_count;
+
+                        // Update button styles
+                        const likeButton = document.querySelector(`.like-button[data-post-id="${postId}"]`);
+                        const dislikeButton = document.querySelector(`.dislike-button[data-post-id="${postId}"]`);
+
+                        if (isLike) {
+                            likeButton.classList.toggle('active');
+                            dislikeButton.classList.remove('active');
+                        } else {
+                            dislikeButton.classList.toggle('active');
+                            likeButton.classList.remove('active');
+                        }
+                    } else if (data && data.success) {
+                        console.error('Error:', data.error);
+                        alert(data.error); // Optional: Show the error message
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                })
+                .finally(() => {
+                    isProcessing = false; // Reset debounce flag
+                });
+        }
+
+        function toggleCommentLike(commentId, isLike) {
+            if (isProcessing) return; // Prevent multiple rapid clicks
+            isProcessing = true;
+
+            fetch('/comment/like', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `comment_id=${commentId}&is_like=${isLike}`
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(text);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Find the clicked button directly using the data-comment-id attribute
+                    const clickedButton = document.querySelector(`button[data-comment-id="${commentId}"][class*="-button"]`);
+                    if (!clickedButton) return;
+
+                    // Find the parent comment container
+                    const comment = clickedButton.closest('.comment');
+                    if (!comment) return;
+
+                    // Find the like/dislike buttons within this comment
+                    const likeButton = comment.querySelector('.like-button[data-comment-id="' + commentId + '"]');
+                    const dislikeButton = comment.querySelector('.dislike-button[data-comment-id="' + commentId + '"]');
+
+                    if (!likeButton || !dislikeButton) return;
+
+                    const likeCountElement = likeButton.querySelector('.like-count');
+                    const dislikeCountElement = dislikeButton.querySelector('.dislike-count');
+
+                    // Update the counts
+                    if (likeCountElement) likeCountElement.textContent = data.likeCount;
+                    if (dislikeCountElement) dislikeCountElement.textContent = data.dislikeCount;
+
+                    // Update button styles based on userLiked
+                    if (data.userLiked === true) {
+                        likeButton.classList.add('active');
+                        dislikeButton.classList.remove('active');
+                    } else if (data.userLiked === false) {
+                        dislikeButton.classList.add('active');
+                        likeButton.classList.remove('active');
+                    } else {
+                        // If userLiked is null, remove both active states
+                        likeButton.classList.remove('active');
+                        dislikeButton.classList.remove('active');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(error.message || 'An error occurred. Please try again.');
+                })
+                .finally(() => {
+                    isProcessing = false; // Reset debounce flag
+                });
+        }
+
+        function toggleCreatePost() {
+            const createPostForm = document.getElementById('createPostForm');
+            const postsList = document.getElementById('posts');
+            const postsHeading = document.getElementById('postsHeading');
+
+            if (createPostForm.style.display === 'none') {
+                createPostForm.style.display = 'block';
+                postsList.style.display = 'none';
+                postsHeading.style.display = 'none'; // Hide the heading when the form is shown
+            } else {
+                createPostForm.style.display = 'none';
+                postsList.style.display = 'block';
+                postsHeading.style.display = 'block'; // Show the heading when the form is hidden
+            }
+        }
+
+        function validateCategories() {
+            const checkboxes = document.querySelectorAll('input[name="category"]');
+            let isChecked = false;
+
+            checkboxes.forEach((checkbox) => {
+                if (checkbox.checked) {
+                    isChecked = true;
+                }
+            });
+
+            if (!isChecked) {
+                alert("Please select at least one category.");
+                return false; // Prevent form submission
+            }
+            return true; // Allow form submission
+        }
+
+        function toggleCommentForm(postId) {
+            const commentForm = document.getElementById(`comment-form-${postId}`);
+            const commentsSection = document.getElementById(`comments-${postId}`);
+            if (commentForm.style.display === 'none') {
+                commentForm.style.display = 'block';
+                commentsSection.style.display = 'block'; // Show comments section when the form is shown
+            } else {
+                commentForm.style.display = 'none';
+                commentsSection.style.display = 'none'; // Hide comments section when the form is hidden
+            }
+        }
+
+        function toggleReplyForm(commentId) {
+            const replyForm = document.getElementById(`reply-form-${commentId}`);
+            if (replyForm.style.display === 'none') {
+                replyForm.style.display = 'block';
+            } else {
+                replyForm.style.display = 'none';
+            }
+        }
+
+        function toggleMenu() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.style.display = sidebar.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Function to validate the comment form
+        function validateCommentForm(event, form) {
+            // Get the textarea element
+            const textarea = form.querySelector('textarea[name="content"]');
+
+            // Check if the textarea is empty or contains only whitespace
+            if (!textarea.value.trim()) {
+                // Prevent form submission
+                event.preventDefault();
+
+                // Alert the user
+                alert("Comment cannot be empty. Please write something before submitting.");
+
+                // Focus on the textarea so the user can continue typing
+                textarea.focus();
+
+                // Return false to prevent form submission
+                return false;
+            }
+
+            // If the textarea is not empty, allow form submission
+            return true;
+        }
+    </script>
+</body>
+
+</html>

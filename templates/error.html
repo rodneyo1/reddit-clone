@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Error - {{.StatusCode}}</title>
+</head>
+
+<body>
+    <div class="error-container">
+        <i class="fas fa-exclamation-circle error-icon"></i>
+        <div class="error-code">Error {{.StatusCode}}</div>
+        <div class="error-message">{{.ErrorMessage}}</div>
+
+        {{if .HelpMessage}}
+        <div class="error-help">
+            <strong>Helpful Tip:</strong> {{.HelpMessage}}
+        </div>
+        {{end}}
+        <a href="/" class="back-button">
+            <i class="fas fa-arrow-left"></i>Back to Posts
+        </a>
+    </div>
+</body>
+
+</html>
