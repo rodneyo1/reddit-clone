@@ -1,23 +1,30 @@
-
 // Router object: Maps routes to functions
 const router = {
     home: async function() {
-        let data = await fetchData("home");
+        let data = await fetchData("api/home");
+        console.log(data)
         renderPage(data);
     },
 };
 
-// Fetch JSON data from Go backend
-async function fetchData(route) {
-    let response = await fetch(`/api/${route}`);
-    return response.json();
+// Update the page content inside the #app div
+function fetchData(route) {
+    return fetch(route)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
+        .catch(error => {
+            console.error("Fetch error:", error);
+            return null;
+        });
 }
 
 // Update the page content inside the #app div
 function renderPage(data) {
     document.getElementById("app").innerHTML = `
-        <h1>${data.title}</h1>
-        <p>${data.content}</p>
+        <h1>${data.posts}</h1>
+        <p>${data.IsLoggedIn}</p>
     `;
 }
 
@@ -42,3 +49,6 @@ window.onload = () => {
     let path = window.location.pathname.substring(1); // allow refreshing on any page
     navigate(path || "home");
 };
+
+// Call when page loads
+document.addEventListener('DOMContentLoaded', fetchData);

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	// "html/template"
 	"encoding/json"
 	"net/http"
@@ -76,14 +77,16 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
 		posts = append(posts, post)
 	}
-	data:=map[string]any{
+
+	data := map[string]interface{}{
 		"Posts":      posts,
 		"IsLoggedIn": userID != "",
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+		fmt.Printf("Error encoding JSON: %v", err)
 	}
+	fmt.Println(data)
 	// // Render the index page with posts
 	// tmpl, err := template.ParseFiles("templates/home.html")
 	// if err != nil {
