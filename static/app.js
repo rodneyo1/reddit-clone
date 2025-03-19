@@ -7,17 +7,39 @@ const router = {
     },
 };
 
-// Update the page content inside the #app div
-function fetchData(route) {
-    return fetch(route)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .catch(error => {
-            console.error("Fetch error:", error);
-            return null;
-        });
+// Fetch data from the server using async/await and try/catch
+async function fetchData(route) {
+    // Check if a route was provided
+    if (!route) {
+        console.error("No route specified for fetchData");
+        return null;
+    }
+    
+    try {
+        // Make the fetch request
+        const response = await fetch(route);
+        
+        // Check if the response is OK
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        // Log the content type for debugging
+        console.log("Content-Type:", response.headers.get("Content-Type"));
+        
+        // Parse the response as JSON
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Fetch error:", error);
+        
+        // Provide more detailed error information for debugging
+        if (error instanceof SyntaxError) {
+            console.error("JSON parsing failed. The server might be returning HTML instead of JSON.");
+        }
+        
+        return null;
+    }
 }
 
 // Update the page content inside the #app div
@@ -49,6 +71,3 @@ window.onload = () => {
     let path = window.location.pathname.substring(1); // allow refreshing on any page
     navigate(path || "home");
 };
-
-// Call when page loads
-document.addEventListener('DOMContentLoaded', fetchData);
