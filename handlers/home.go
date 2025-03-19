@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"database/sql"
-	"html/template"
+	// "html/template"
+	"encoding/json"
 	"net/http"
 	"time"
 )
@@ -75,16 +76,23 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
 		posts = append(posts, post)
 	}
-
-	// Render the index page with posts
-	tmpl, err := template.ParseFiles("templates/home.html")
-	if err != nil {
-		RenderError(w, r, "Error parsing file", http.StatusInternalServerError)
-		return
-	}
-
-	tmpl.Execute(w, map[string]interface{}{
+	data:=map[string]any{
 		"Posts":      posts,
 		"IsLoggedIn": userID != "",
-	})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
+	}
+	// // Render the index page with posts
+	// tmpl, err := template.ParseFiles("templates/home.html")
+	// if err != nil {
+	// 	RenderError(w, r, "Error parsing file", http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// tmpl.Execute(w, map[string]interface{}{
+	// 	"Posts":      posts,
+	// 	"IsLoggedIn": userID != "",
+	// })
 }
