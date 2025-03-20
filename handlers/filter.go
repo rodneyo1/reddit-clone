@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"database/sql"
-	"html/template"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -62,10 +63,10 @@ func FilterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get the category from the query parameters
 	category := r.URL.Query().Get("category")
-	if category == "" {
-		RenderError(w, r, "Error: Category parameter is missing or incomplete.", http.StatusBadRequest)
-		return
-	}
+	// if category == "" {
+	// 	RenderError(w, r, "Error: Category parameter is missing or incomplete.", http.StatusBadRequest)
+	// 	return
+	// }
 
 	// Validate the category
 	if category != "all" && category != "" && !isValidCategory(category) {
@@ -191,21 +192,30 @@ ORDER BY c.created_at DESC
 	}
 
 	// Render the home template with the filtered posts
-	tmpl, err := template.ParseFiles("templates/home.html")
-	if err != nil {
-		log.Printf("Error parsing template: %v", err)
-		RenderError(w, r, "Error parsing template", http.StatusInternalServerError)
-		return
-	}
+	// tmpl, err := template.ParseFiles("templates/home.html")
+	// if err != nil {
+	// 	log.Printf("Error parsing template: %v", err)
+	// 	RenderError(w, r, "Error parsing template", http.StatusInternalServerError)
+	// 	return
+	// }
 
-	err = tmpl.Execute(w, map[string]interface{}{
+	data := map[string]interface{}{
 		"Posts":            posts,
 		"IsLoggedIn":       isLoggedIn,
 		"SelectedCategory": category,
-	})
-	if err != nil {
-		log.Printf("Error executing template: %v", err)
-		RenderError(w, r, "Error rendering page", http.StatusInternalServerError)
-		return
 	}
+	fmt.Println(data)
+	// data := map[string]interface{}{
+	// 	"Posts":      posts,
+	// 	"IsLoggedIn": userID != "",
+	// }
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		fmt.Printf("Error encoding JSON: %v", err)
+	}
+	// if err != nil {
+	// 	log.Printf("Error executing template: %v", err)
+	// 	RenderError(w, r, "Error rendering page", http.StatusInternalServerError)
+	// 	return
+	// }
 }

@@ -19,9 +19,15 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("src"))))
+    
+	
+    // Serve HTML for home
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "templates/index.html")
+	})
 
-
-	http.HandleFunc("/", handler)
+	// Serve API data for frontend fetch requests
+	http.HandleFunc("/api/home", handlers.HomeHandler)
 
 	// Initialize the database and OAuth providers
 	handlers.InitDB()
@@ -39,6 +45,8 @@ func main() {
 func handler(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/":
+		handlers.HomeHandler(w, r)
+	case "/home":
 		handlers.HomeHandler(w, r)
 	case "/login":
 		handlers.LoginHandler(w, r)

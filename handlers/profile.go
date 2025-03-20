@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"html/template"
+	// "html/template"
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -133,23 +134,27 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"Username":     username,
 		"Email":        email,
 		"CreatedPosts": userPosts,
 		"LikedPosts":   userLikedPosts,
 	}
 
-	tmpl, err := template.ParseFiles("templates/profile.html")
-	if err != nil {
-		log.Printf("Error parsing profile template: %v", err)
-		RenderError(w, r, "Error loading profile page", http.StatusInternalServerError)
-		return
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
 	}
+	// tmpl, err := template.ParseFiles("templates/profile.html")
+	// if err != nil {
+	// 	log.Printf("Error parsing profile template: %v", err)
+	// 	RenderError(w, r, "Error loading profile page", http.StatusInternalServerError)
+	// 	return
+	// }
 
-	if err := tmpl.Execute(w, data); err != nil {
-		log.Printf("Error executing profile template: %v", err)
-		RenderError(w, r, "Error rendering profile page", http.StatusInternalServerError)
-		return
-	}
+	// if err := tmpl.Execute(w, data); err != nil {
+	// 	log.Printf("Error executing profile template: %v", err)
+	// 	RenderError(w, r, "Error rendering profile page", http.StatusInternalServerError)
+	// 	return
+	// }
 }

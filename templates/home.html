@@ -35,193 +35,198 @@
             {{end}}
         </nav>
     </header>
-    <div class="container">
-        <aside class="sidebar" id="sidebar">
-            <h3>Categories</h3>
-            <ul>
-                <li><a href="/">All Posts</a></li>
-                <li><a href="/filter?category=technology">Technology</a></li>
-                <li><a href="/filter?category=general">General</a></li>
-                <li><a href="/filter?category=lifestyle">Lifestyle</a></li>
-                <li><a href="/filter?category=entertainment">Entertainment</a></li>
-                <li><a href="/filter?category=gaming">Gaming</a></li>
-                <li><a href="/filter?category=food">Food</a></li>
-                <li><a href="/filter?category=business">Business</a></li>
-                <li><a href="/filter?category=religion">Religion</a></li>
-                <li><a href="/filter?category=health">Health</a></li>
-                <li><a href="/filter?category=music">Music</a></li>
-                <li><a href="/filter?category=sports">Sports</a></li>
-                <li><a href="/filter?category=beauty">Beauty</a></li>
-                <li><a href="/filter?category=jobs">Jobs</a></li>
-            </ul>
-            <!-- <div class="sidebar-footer">
+    <section id="app">
+        <div class="container">
+            <aside class="sidebar" id="sidebar">
+                <h3>Categories</h3>
+                <ul>
+                    <li><a href="/">All Posts</a></li>
+                    <li><a href="/filter?category=technology">Technology</a></li>
+                    <li><a href="/filter?category=general">General</a></li>
+                    <li><a href="/filter?category=lifestyle">Lifestyle</a></li>
+                    <li><a href="/filter?category=entertainment">Entertainment</a></li>
+                    <li><a href="/filter?category=gaming">Gaming</a></li>
+                    <li><a href="/filter?category=food">Food</a></li>
+                    <li><a href="/filter?category=business">Business</a></li>
+                    <li><a href="/filter?category=religion">Religion</a></li>
+                    <li><a href="/filter?category=health">Health</a></li>
+                    <li><a href="/filter?category=music">Music</a></li>
+                    <li><a href="/filter?category=sports">Sports</a></li>
+                    <li><a href="/filter?category=beauty">Beauty</a></li>
+                    <li><a href="/filter?category=jobs">Jobs</a></li>
+                </ul>
+                <!-- <div class="sidebar-footer">
                 {{if .IsLoggedIn}}
                 <a href="/logout" class="logout-link">Logout</a>
                 {{end}}
             </div> -->
-        </aside>
-        <main>
-            {{if .IsLoggedIn}}
-            <div id="createPostForm" style="display: none;">
-                <h1>Create a New Post</h1>
-                <form method="POST" action="/post" enctype="multipart/form-data" onsubmit="return validateCategories()">
-                    <label for="title">Title:</label>
-                    <input type="text" id="title" name="title" required>
-                    <br>
+            </aside>
+            <main>
+                {{if .IsLoggedIn}}
+                <div id="createPostForm" style="display: none;">
+                    <h1>Create a New Post</h1>
+                    <form method="POST" action="/post" enctype="multipart/form-data"
+                        onsubmit="return validateCategories()">
+                        <label for="title">Title:</label>
+                        <input type="text" id="title" name="title" required>
+                        <br>
 
-                    <label for="content">Content:</label>
-                    <textarea id="content" name="content" required></textarea>
-                    <br>
+                        <label for="content">Content:</label>
+                        <textarea id="content" name="content" required></textarea>
+                        <br>
 
-                    <label for="image">Image:</label>
-                    <input type="file" id="image" name="image" accept="image/jpeg, image/png, image/gif">
-                    <br>
+                        <label for="image">Image:</label>
+                        <input type="file" id="image" name="image" accept="image/jpeg, image/png, image/gif">
+                        <br>
 
-                    <label for="category">Category:</label>
-                    <div id="category" name="category" class="checkbox-group">
-                        <label><input type="checkbox" name="category" value="technology"> Technology</label>
-                        <label><input type="checkbox" name="category" value="general"> General</label>
-                        <label><input type="checkbox" name="category" value="lifestyle"> Lifestyle</label>
-                        <label><input type="checkbox" name="category" value="entertainment"> Entertainment</label>
-                        <label><input type="checkbox" name="category" value="gaming"> Gaming</label>
-                        <label><input type="checkbox" name="category" value="food"> Food</label>
-                        <label><input type="checkbox" name="category" value="business"> Business</label>
-                        <label><input type="checkbox" name="category" value="religion"> Religion</label>
-                        <label><input type="checkbox" name="category" value="health"> Health</label>
-                        <label><input type="checkbox" name="category" value="music"> Music</label>
-                        <label><input type="checkbox" name="category" value="sports"> Sports</label>
-                        <label><input type="checkbox" name="category" value="beauty"> Beauty</label>
-                        <label><input type="checkbox" name="category" value="jobs"> Jobs</label>
-                    </div>
-                    <br>
+                        <label for="category">Category:</label>
+                        <div id="category" name="category" class="checkbox-group">
+                            <label><input type="checkbox" name="category" value="technology"> Technology</label>
+                            <label><input type="checkbox" name="category" value="general"> General</label>
+                            <label><input type="checkbox" name="category" value="lifestyle"> Lifestyle</label>
+                            <label><input type="checkbox" name="category" value="entertainment"> Entertainment</label>
+                            <label><input type="checkbox" name="category" value="gaming"> Gaming</label>
+                            <label><input type="checkbox" name="category" value="food"> Food</label>
+                            <label><input type="checkbox" name="category" value="business"> Business</label>
+                            <label><input type="checkbox" name="category" value="religion"> Religion</label>
+                            <label><input type="checkbox" name="category" value="health"> Health</label>
+                            <label><input type="checkbox" name="category" value="music"> Music</label>
+                            <label><input type="checkbox" name="category" value="sports"> Sports</label>
+                            <label><input type="checkbox" name="category" value="beauty"> Beauty</label>
+                            <label><input type="checkbox" name="category" value="jobs"> Jobs</label>
+                        </div>
+                        <br>
 
-                    <button type="submit">Post</button>
-                    <button type="button" onclick="toggleCreatePost()">Cancel</button>
-                </form>
-            </div>
-            {{end}}
-
-            <h1 id="postsHeading">
-                {{if .SelectedCategory}}
-                {{.SelectedCategory}}
-                {{else}}
-                All Posts
+                        <button type="submit">Post</button>
+                        <button type="button" onclick="toggleCreatePost()">Cancel</button>
+                    </form>
+                </div>
                 {{end}}
-            </h1>
-            <div id="posts">
-                {{if .Posts}}
-                {{range .Posts}}
-                <div class="post" data-category="{{.Categories}}">
-                    <p class="posted-on">{{.CreatedAtHuman}}</p>
-                    <strong>
-                        <p>{{.Username}}</p>
-                    </strong>
-                    <h3>{{.Title}}</h3>
-                    <p>{{.Content}}</p>
-                    {{if .ImagePath}} <!-- Display image if it exists -->
-                    <img src="{{.ImagePath}}" alt="Post Image" class="post-image">
-                    {{end}}
-                    <p class="categories">Categories: <span>{{.Categories}}</span></p>
-                    <div class="post-actions">
-                        <button class="like-button" data-post-id="{{.ID}}" onclick="toggleLike('{{.ID}}', true)">
-                            <i class="fas fa-thumbs-up"></i> <span class="like-count">{{.LikeCount}}</span>
-                        </button>
-                        <button class="dislike-button" data-post-id="{{.ID}}" onclick="toggleLike('{{.ID}}', false)">
-                            <i class="fas fa-thumbs-down"></i> <span class="dislike-count">{{.DislikeCount}}</span>
-                        </button>
-                        <button class="comment-button" onclick="toggleCommentForm('{{.ID}}')">
-                            <i class="fas fa-comment"></i> Comments
-                        </button>
-                    </div>
 
-                    <!-- Comments Section -->
-                    <div class="comments-section" id="comments-{{.ID}}" style="display: none;">
-                        <!-- Comment Form -->
-                        <div class="comment-form" id="comment-form-{{.ID}}" style="display: none;">
-                            {{if $.IsLoggedIn}}
-                            <form method="POST" action="/comment" onsubmit="return validateCommentForm(event, this)">
-                                <input type="hidden" name="post_id" value="{{.ID}}">
-                                <textarea name="content" placeholder="Write your comment..." required></textarea>
-                                <button type="submit">Comment</button>
-                            </form>
-                            {{else}}
-                            <p>Please <a href="/login">login</a> to comment.</p>
-                            {{end}}
+                <h1 id="postsHeading">
+                    {{if .SelectedCategory}}
+                    {{.SelectedCategory}}
+                    {{else}}
+                    All Posts
+                    {{end}}
+                </h1>
+                <div id="posts">
+                    {{if .Posts}}
+                    {{range .Posts}}
+                    <div class="post" data-category="{{.Categories}}">
+                        <p class="posted-on">{{.CreatedAtHuman}}</p>
+                        <strong>
+                            <p>{{.Username}}</p>
+                        </strong>
+                        <h3>{{.Title}}</h3>
+                        <p>{{.Content}}</p>
+                        {{if .ImagePath}} <!-- Display image if it exists -->
+                        <img src="{{.ImagePath}}" alt="Post Image" class="post-image">
+                        {{end}}
+                        <p class="categories">Categories: <span>{{.Categories}}</span></p>
+                        <div class="post-actions">
+                            <button class="like-button" data-post-id="{{.ID}}" onclick="toggleLike('{{.ID}}', true)">
+                                <i class="fas fa-thumbs-up"></i> <span class="like-count">{{.LikeCount}}</span>
+                            </button>
+                            <button class="dislike-button" data-post-id="{{.ID}}"
+                                onclick="toggleLike('{{.ID}}', false)">
+                                <i class="fas fa-thumbs-down"></i> <span class="dislike-count">{{.DislikeCount}}</span>
+                            </button>
+                            <button class="comment-button" onclick="toggleCommentForm('{{.ID}}')">
+                                <i class="fas fa-comment"></i> Comments
+                            </button>
                         </div>
 
-                        {{if .Comments}}
-                        {{range .Comments}}
-                        <div class="comment" data-comment-id="{{.ID}}">
-                            <div class="comment-meta">
-                                <span class="comment-author">Posted by {{.Username}}</span>
-                                <span class="comment-date">{{.CreatedAtHuman}}</span>
-                            </div>
-                            <div class="comment-content">{{.Content}}</div>
-                            {{if $.IsLoggedIn}}
-                            <div class="comment-actions">
-                                <button class="like-button" data-comment-id="{{.ID}}"
-                                    onclick="toggleCommentLike('{{.ID}}', true)">
-                                    <i class="fas fa-thumbs-up"></i> <span class="like-count">{{.LikeCount}}</span>
-                                </button>
-                                <button class="dislike-button" data-comment-id="{{.ID}}"
-                                    onclick="toggleCommentLike('{{.ID}}', false)">
-                                    <i class="fas fa-thumbs-down"></i> <span
-                                        class="dislike-count">{{.DislikeCount}}</span>
-                                </button>
-                                <button class="reply-button" onclick="toggleReplyForm('{{.ID}}')">
-                                    Reply{{if gt .ReplyCount 0}} ({{.ReplyCount}}){{end}}
-                                </button>
-                            </div>
-                            <div class="reply-form" id="reply-form-{{.ID}}" style="display: none;">
-                                <form method="POST" action="/comment">
-                                    <input type="hidden" name="post_id" value="{{.PostID}}">
-                                    <input type="hidden" name="parent_id" value="{{.ID}}">
-                                    <textarea name="content" placeholder="Write your reply..." required></textarea>
-                                    <button type="submit">Reply</button>
+                        <!-- Comments Section -->
+                        <div class="comments-section" id="comments-{{.ID}}" style="display: none;">
+                            <!-- Comment Form -->
+                            <div class="comment-form" id="comment-form-{{.ID}}" style="display: none;">
+                                {{if $.IsLoggedIn}}
+                                <form method="POST" action="/comment"
+                                    onsubmit="return validateCommentForm(event, this)">
+                                    <input type="hidden" name="post_id" value="{{.ID}}">
+                                    <textarea name="content" placeholder="Write your comment..." required></textarea>
+                                    <button type="submit">Comment</button>
                                 </form>
+                                {{else}}
+                                <p>Please <a href="/login">login</a> to comment.</p>
+                                {{end}}
                             </div>
-                            {{end}}
 
-                            <!-- Nested Replies -->
-                            {{if .Replies}}
-                            <div class="replies">
-                                {{range .Replies}}
-                                <div class="comment reply" data-comment-id="{{.ID}}">
-                                    <div class="comment-meta">
-                                        <span class="comment-author">Posted by {{.Username}}</span>
-                                        <span class="comment-date">{{.CreatedAtHuman}}</span>
-                                    </div>
-                                    <div class="comment-content">{{.Content}}</div>
-                                    {{if $.IsLoggedIn}}
-                                    <div class="comment-actions">
-                                        <button class="like-button" data-comment-id="{{.ID}}"
-                                            onclick="toggleCommentLike('{{.ID}}', true)">
-                                            <i class="fas fa-thumbs-up"></i> <span
-                                                class="like-count">{{.LikeCount}}</span>
-                                        </button>
-                                        <button class="dislike-button" data-comment-id="{{.ID}}"
-                                            onclick="toggleCommentLike('{{.ID}}', false)">
-                                            <i class="fas fa-thumbs-down"></i> <span
-                                                class="dislike-count">{{.DislikeCount}}</span>
-                                        </button>
+                            {{if .Comments}}
+                            {{range .Comments}}
+                            <div class="comment" data-comment-id="{{.ID}}">
+                                <div class="comment-meta">
+                                    <span class="comment-author">Posted by {{.Username}}</span>
+                                    <span class="comment-date">{{.CreatedAtHuman}}</span>
+                                </div>
+                                <div class="comment-content">{{.Content}}</div>
+                                {{if $.IsLoggedIn}}
+                                <div class="comment-actions">
+                                    <button class="like-button" data-comment-id="{{.ID}}"
+                                        onclick="toggleCommentLike('{{.ID}}', true)">
+                                        <i class="fas fa-thumbs-up"></i> <span class="like-count">{{.LikeCount}}</span>
+                                    </button>
+                                    <button class="dislike-button" data-comment-id="{{.ID}}"
+                                        onclick="toggleCommentLike('{{.ID}}', false)">
+                                        <i class="fas fa-thumbs-down"></i> <span
+                                            class="dislike-count">{{.DislikeCount}}</span>
+                                    </button>
+                                    <button class="reply-button" onclick="toggleReplyForm('{{.ID}}')">
+                                        Reply{{if gt .ReplyCount 0}} ({{.ReplyCount}}){{end}}
+                                    </button>
+                                </div>
+                                <div class="reply-form" id="reply-form-{{.ID}}" style="display: none;">
+                                    <form method="POST" action="/comment">
+                                        <input type="hidden" name="post_id" value="{{.PostID}}">
+                                        <input type="hidden" name="parent_id" value="{{.ID}}">
+                                        <textarea name="content" placeholder="Write your reply..." required></textarea>
+                                        <button type="submit">Reply</button>
+                                    </form>
+                                </div>
+                                {{end}}
+
+                                <!-- Nested Replies -->
+                                {{if .Replies}}
+                                <div class="replies">
+                                    {{range .Replies}}
+                                    <div class="comment reply" data-comment-id="{{.ID}}">
+                                        <div class="comment-meta">
+                                            <span class="comment-author">Posted by {{.Username}}</span>
+                                            <span class="comment-date">{{.CreatedAtHuman}}</span>
+                                        </div>
+                                        <div class="comment-content">{{.Content}}</div>
+                                        {{if $.IsLoggedIn}}
+                                        <div class="comment-actions">
+                                            <button class="like-button" data-comment-id="{{.ID}}"
+                                                onclick="toggleCommentLike('{{.ID}}', true)">
+                                                <i class="fas fa-thumbs-up"></i> <span
+                                                    class="like-count">{{.LikeCount}}</span>
+                                            </button>
+                                            <button class="dislike-button" data-comment-id="{{.ID}}"
+                                                onclick="toggleCommentLike('{{.ID}}', false)">
+                                                <i class="fas fa-thumbs-down"></i> <span
+                                                    class="dislike-count">{{.DislikeCount}}</span>
+                                            </button>
+                                        </div>
+                                        {{end}}
                                     </div>
                                     {{end}}
                                 </div>
                                 {{end}}
                             </div>
                             {{end}}
+                            {{end}}
                         </div>
-                        {{end}}
-                        {{end}}
                     </div>
+                    {{end}}
+                    {{else}}
+                    <p>No posts available.</p>
+                    {{end}}
                 </div>
-                {{end}}
-                {{else}}
-                <p>No posts available.</p>
-                {{end}}
-            </div>
-        </main>
-    </div>
+            </main>
+        </div>
+    </section>
     <script>
         let isProcessing = false; // Debounce flag
 
