@@ -2,9 +2,13 @@
 const router = {
     home: async function() {
         let data = await fetchData("api/home");
-        console.log(data)
+        console.log(data);
         renderPage(data);
     },
+    login: async function() {
+        renderPage("");
+    },
+
 };
 
 // Fetch data from the server using async/await and try/catch
@@ -41,14 +45,21 @@ async function fetchData(route) {
         return null;
     }
 }
+class WebPage {
+    constructor(data, htmlContent){
+        this.data = data;
+        this.htmlContent = htmlContent;
+    }
+}
 
 // Update the page content inside the #app div
-function renderPage(data) {
+function renderPage(WebPage) {
     document.getElementById("app").innerHTML = `
         <h1>${data.posts}</h1>
         <p>${data.IsLoggedIn}</p>
     `;
 }
+
 
 // Navigate function: Calls the correct handler
 function navigate(route) {
