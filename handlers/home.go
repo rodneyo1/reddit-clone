@@ -2,11 +2,10 @@ package handlers
 
 import (
 	"database/sql"
-	"fmt"
-	// "html/template"
-	"encoding/json"
+	"html/template"
 	"net/http"
 	"time"
+	// "html/template"
 )
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
@@ -82,20 +81,17 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		"Posts":      posts,
 		"IsLoggedIn": userID != "",
 	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		fmt.Printf("Error encoding JSON: %v", err)
-	}
-	fmt.Println(data)
-	// // Render the index page with posts
-	// tmpl, err := template.ParseFiles("templates/home.html")
-	// if err != nil {
-	// 	RenderError(w, r, "Error parsing file", http.StatusInternalServerError)
-	// 	return
+	// w.Header().Set("Content-Type", "application/json")
+	// if err := json.NewEncoder(w).Encode(data); err != nil {
+	// 	fmt.Printf("Error encoding JSON: %v", err)
 	// }
+	// fmt.Println(data)
+	// // Render the index page with posts
+	tmpl, err := template.ParseFiles("templates/home.html")
+	if err != nil {
+		RenderError(w, r, "Error parsing file", http.StatusInternalServerError)
+		return
+	}
 
-	// tmpl.Execute(w, map[string]interface{}{
-	// 	"Posts":      posts,
-	// 	"IsLoggedIn": userID != "",
-	// })
+	tmpl.Execute(w, data)
 }
