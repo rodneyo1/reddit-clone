@@ -27,7 +27,8 @@ func main() {
 	})
 
 	// Serve API data for frontend fetch requests
-	http.HandleFunc("/api/home", handlers.HomeHandler)
+	http.HandleFunc("/home", handlers.HomeHandler)
+	// http.HandleFunc("/login", handlers.LoginHandler)
 
 	// Initialize the database and OAuth providers
 	handlers.InitDB()
