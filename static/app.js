@@ -28,7 +28,7 @@ const router = {
             <span>Sign in with GitHub</span>
         </a>
 
-        <div class="oauth-divider">aa
+        <div class="oauth-divider">
             <span>or</span>
         </div>
 
