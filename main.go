@@ -23,11 +23,11 @@ func main() {
 	
     // Serve HTML for home
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "templates/index.html")
+		http.ServeFile(w, r, "templates/home.html")
 	})
 
 	// Serve API data for frontend fetch requests
-	http.HandleFunc("/home", handlers.HomeHandler)
+	http.HandleFunc("/api/home", handlers.HomeHandler)
 	// http.HandleFunc("/login", handlers.LoginHandler)
 
 	// Initialize the database and OAuth providers
