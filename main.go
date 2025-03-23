@@ -27,7 +27,8 @@ func main() {
 
 	// Serve API data for frontend fetch requests
 	http.HandleFunc("/api/home", handlers.HomeHandler)
-	http.HandleFunc("api/register", handlers.RegisterHandler)
+	http.HandleFunc("/api/register", handlers.RegisterHandler)
+	http.HandleFunc("/api/profile", handlers.ProfileHandler)
 	http.HandleFunc("/api/login", handlers.LoginHandler)
 	http.HandleFunc("/api/check-login", handlers.CheckLoginHandler)
 
