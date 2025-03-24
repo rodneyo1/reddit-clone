@@ -1,6 +1,7 @@
 // Routes
 const routes = {
-    '/': 'home',
+    '/': 'login',
+    'home': 'home',
     '/login': 'login',
     '/register': 'register',
     '/profile': 'profile'
@@ -13,10 +14,11 @@ async function render(path) {
 
     switch (path) {
         case '/':
-            app.innerHTML = await fetchHomeContent();
-            break;
         case '/login':
             app.innerHTML = await fetchLoginContent();
+            break;
+        case '/home':
+            app.innerHTML = await fetchHomeContent();
             break;
         case '/register':
             app.innerHTML = await fetchRegisterContent();
@@ -134,7 +136,7 @@ async function fetchLoginContent() {
                 <button type="submit">Login</button>
             </form>
             <p>Don't have an account? <a href="#/register">Register here</a></p>
-            <p class="home-link"><a href="#/">← Back to Homepage</a></p>
+            <p class="home-link"><a href="#/home">← Back to Homepage</a></p>
         </div>
     `;
 }
@@ -158,7 +160,7 @@ async function handleLogin(event) {
     const data = await response.json();
     if (data.success) {
         alert('Login successful!');
-        window.location.hash = '/'; // Redirect to home page
+        window.location.hash = '/home'; // Redirect to home page
     } else {
         alert(data.error); // Show error message
     }
@@ -202,7 +204,7 @@ async function fetchRegisterContent() {
                 <button type="submit">Register</button>
             </form>
             <p>Already have an account? <a href="#/login">Login here</a></p>
-            <p class="home-link"><a href="#/">← Back to Homepage</a></p>
+            <p class="home-link"><a href="#/home">← Back to Homepage</a></p>
         </div>
     `;
 }
