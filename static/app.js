@@ -2,10 +2,10 @@
 const router = {
     home: async function() {
         let data = await fetchData("api/home");
-        console.log(data);
         renderPage(data);
     },
     login: async function() {
+
         renderPage("");
     },
 
@@ -21,7 +21,7 @@ async function fetchData(route) {
     
     try {
         // Make the fetch request
-        const response = await fetch(route);
+        const response = await fetch(api/home);
         
         // Check if the response is OK
         if (!response.ok) {
@@ -53,7 +53,7 @@ class WebPage {
 }
 
 // Update the page content inside the #app div
-function renderPage(WebPage) {
+function renderPage(data) {
     document.getElementById("app").innerHTML = `
         <h1>${data.posts}</h1>
         <p>${data.IsLoggedIn}</p>
