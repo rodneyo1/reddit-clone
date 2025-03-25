@@ -34,6 +34,7 @@ func main() {
 	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)
 
 	// Authentication endpoints
+	http.HandleFunc("/auth/checklogin", handlers.CheckLoginHandler)
 	http.HandleFunc("/auth/login", handlers.LoginHandler)
 	http.HandleFunc("/auth/register", handlers.RegisterHandler)
 	http.HandleFunc("/auth/logout", handlers.LogoutHandler)

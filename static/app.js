@@ -147,7 +147,7 @@ async function handleLogin(event) {
     const formData = new FormData(event.target);
 
     // Send the login data to the backend
-    const response = await fetch('/api/login', {
+    const response = await fetch('/auth/login', {
         method: 'POST',
         body: JSON.stringify({
             email: formData.get('email'),
@@ -224,7 +224,7 @@ async function handleRegister(event) {
 
     // Send the registration data to the backend
     try{
-    const response = await fetch('/api/register', {
+    const response = await fetch('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
             email: formData.get('email'),
@@ -250,7 +250,7 @@ async function handleRegister(event) {
 
 // Check login status
 async function checkLoginStatus() {
-    const response = await fetch('/api/check-login');
+    const response = await fetch('/auth/checklogin');
     const data = await response.json();
     return data.isLoggedIn;
 }
