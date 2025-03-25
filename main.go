@@ -53,7 +53,7 @@ func main() {
 		}
 		
 		// Serve the SPA index.html for all frontend routes
-		loginPath := filepath.Join("static", "login.html")
+		loginPath := filepath.Join("static", "index.html")
 		http.ServeFile(w, r, loginPath)
 	})
 
