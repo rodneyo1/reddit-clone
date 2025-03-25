@@ -37,7 +37,7 @@ async function render(path) {
             <div class="profile-icon" style="position: relative;">
                 <a href="#/profile" class="material-icons" style="font-size:30px; color: #4A7C8C; margin-top: 10px; vertical-align: middle;">person</a>
             </div>
-            <a href="#" class="auth-button create-post" onclick="toggleCreatePost()">Create Post</a>
+            <button class="auth-button create-post" onclick="toggleCreatePost()">Create Post</button>
             <a href="#/logout" class="logout-icon" title="Logout">
                 <i class="fas fa-sign-out-alt" style="font-size: 24px; color: #4A7C8C; margin-top: 10px;"></i>
             </a>
@@ -48,98 +48,100 @@ async function render(path) {
         `;
 }
 
-// Fetch home content
+// To be replaced with actual fetch functions and backend api & query
+const CATEGORIES = [
+    "technology", "general", "lifestyle", "entertainment", "gaming",
+    "food", "business", "religion", "health", "music",
+    "sports", "beauty", "jobs"
+];
+
 async function fetchHomeContent() {
     const response = await fetch('/api/home');
     const data = await response.json();
+
     return `
+        ${data.isLoggedIn ? renderCreatePostForm() : ''}
         <div class="container">
-            <aside class="sidebar" id="sidebar">
-                <h3>Categories</h3>
-                <ul>
-                    <li><a href="#/">All Posts</a></li>
-                    <li><a href="#/filter?category=technology">Technology</a></li>
-                     <li><a href="/filter?category=general">General</a></li>
-                    <li><a href="/filter?category=lifestyle">Lifestyle</a></li>
-                    <li><a href="/filter?category=entertainment">Entertainment</a></li>
-                    <li><a href="/filter?category=gaming">Gaming</a></li>
-                    <li><a href="/filter?category=food">Food</a></li>
-                    <li><a href="/filter?category=business">Business</a></li>
-                    <li><a href="/filter?category=religion">Religion</a></li>
-                    <li><a href="/filter?category=health">Health</a></li>
-                    <li><a href="/filter?category=music">Music</a></li>
-                    <li><a href="/filter?category=sports">Sports</a></li>
-                    <li><a href="/filter?category=beauty">Beauty</a></li>
-                    <li><a href="/filter?category=jobs">Jobs</a></li>
-                </ul>
-            </aside>
+            ${renderSidebar()}
             <main>
                 <h1 id="postsHeading">All Posts</h1>
-                <div id="posts">
-                    ${data.posts.map(post => `
-                        <div class="post" data-category="${post.categories}">
-                            <p class="posted-on">${post.createdAtHuman}</p>
-                            <strong><p>${post.username}</p></strong>
-                            <h3>${post.title}</h3>
-                            <p>${post.content}</p>
-                            ${post.imagePath ? `<img src="${post.imagePath}" alt="Post Image" class="post-image">` : ''}
-                            <p class="categories">Categories: <span>${post.categories}</span></p>
-                            <div class="post-actions">
-                                <button class="like-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', true)">
-                                    <i class="fas fa-thumbs-up"></i> <span class="like-count">${post.likeCount}</span>
-                                </button>
-                                <button class="dislike-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', false)">
-                                    <i class="fas fa-thumbs-down"></i> <span class="dislike-count">${post.dislikeCount}</span>
-                                </button>
-                                <button class="comment-button" onclick="toggleCommentForm('${post.id}')">
-                                    <i class="fas fa-comment"></i> Comments
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
+                <div id="posts">${renderPosts(data.posts)}</div>
             </main>
         </div>
     `;
 }
 
-// Fetch login form content
-async function fetchLoginContent() {
+// Helper Functions
+
+function renderCreatePostForm() {
     return `
-        <div class="auth-container">
-            <h1>Login</h1>
+        <div id="createPostForm" style="display: none;">
+            <h1>Create a New Post</h1>
+            <form method="POST" action="/post" enctype="multipart/form-data" onsubmit="return validateCategories()">
+                <label for="title">Title:</label>
+                <input type="text" id="title" name="title" required>
+                
+                <label for="content">Content:</label>
+                <textarea id="content" name="content" required></textarea>
+                
+                <label for="image">Image:</label>
+                <input type="file" id="image" name="image" accept="image/jpeg, image/png, image/gif">
+                
+                <label for="category">Category:</label>
+                <div id="category" class="checkbox-group">
+                    ${CATEGORIES.map(cat => `
+                        <label><input type="checkbox" name="category" value="${cat}"> ${capitalize(cat)}</label>
+                    `).join('')}
+                </div>
 
-            <!-- Google Sign-In Button -->
-            <a href="/auth/google/login" class="google-btn">
-                <img src="/src/google.jpeg" alt="Google Logo">
-                <span>Sign in with Google</span>
-            </a>
-
-            <!-- GitHub Sign-In Button -->
-            <a href="/auth/github/login" class="github-btn">
-                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo">
-                <span>Sign in with GitHub</span>
-            </a>
-
-            <div class="oauth-divider">
-                <span>or</span>
-            </div>
-
-            <!-- Traditional Login Form -->
-            <form id="login-form" onsubmit="handleLogin(event)">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
-                <br>
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
-                <br>
-                <button type="submit">Login</button>
+                <button type="submit">Post</button>
+                <button type="button" onclick="toggleCreatePost()">Cancel</button>
             </form>
-            <p>Don't have an account? <a href="#/register">Register here</a></p>
-            <p class="home-link"><a href="#/home">← Back to Homepage</a></p>
         </div>
     `;
 }
+
+function renderSidebar() {
+    return `
+        <aside class="sidebar" id="sidebar">
+            <h3>Categories</h3>
+            <ul>
+                <li><a href="#/">All Posts</a></li>
+                ${CATEGORIES.map(cat => `<li><a href="/filter?category=${cat}">${capitalize(cat)}</a></li>`).join('')}
+            </ul>
+        </aside>
+    `;
+}
+
+function renderPosts(posts) {
+    return posts.map(post => `
+        <div class="post" data-category="${post.categories}">
+            <p class="posted-on">${post.createdAtHuman}</p>
+            <strong><p>${post.username}</p></strong>
+            <h3>${post.title}</h3>
+            <p>${post.content}</p>
+            ${post.imagePath ? `<img src="${post.imagePath}" alt="Post Image" class="post-image">` : ''}
+            <p class="categories">Categories: <span>${post.categories}</span></p>
+            <div class="post-actions">
+                <button class="like-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', true)">
+                    <i class="fas fa-thumbs-up"></i> <span class="like-count">${post.likeCount}</span>
+                </button>
+                <button class="dislike-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', false)">
+                    <i class="fas fa-thumbs-down"></i> <span class="dislike-count">${post.dislikeCount}</span>
+                </button>
+                <button class="comment-button" onclick="toggleCommentForm('${post.id}')">
+                    <i class="fas fa-comment"></i> Comments
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Utility Function
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 
 // Fetch profile content
 async function fetchProfileContent() {
