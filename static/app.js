@@ -141,6 +141,62 @@ async function fetchLoginContent() {
     `;
 }
 
+// Fetch profile content
+async function fetchProfileContent() {
+    const response = await fetch('/api/profile');
+    const data = await response.json();
+    return `
+    <div class="profile-container">
+        <div class="profile-header">
+            <h1><i class="fas fa-user-circle"></i> ${data.Username}'s Profile</h1>
+            <p><i class="fas fa-envelope"></i> ${data.Email}</p>
+        </div>
+
+        <div class="profile-sections">
+            <!-- Created Posts Section -->
+            <section class="profile-section">
+                <h2><i class="fas fa-pencil-alt"></i> Your Posts</h2>
+                ${data.CreatedPosts && data.CreatedPosts.length > 0 
+                    ? data.CreatedPosts.map(post => `
+                        <article class="post">
+                            // ...existing post template...
+                        </article>
+                    `).join('')
+                    : '<p class="empty-message">You haven\'t created any posts yet.</p>'
+                }
+            </section>
+
+            <!-- Liked Posts Section -->
+            <section class="profile-section">
+                <h2><i class="fas fa-heart"></i> Liked Posts</h2>
+                ${data.LikedPosts && data.LikedPosts.length > 0 
+                    ? data.LikedPosts.map(post => `
+                        <article class="post">
+                            <h3>${post.Title}</h3>
+                            <p class="post-content">${post.Content}</p>
+                            ${post.ImagePath 
+                                ? `<img src="${post.ImagePath}" alt="Post Image" class="post-image" />`
+                                : ''
+                            }
+                            <div class="post-meta">
+                                ${post.Categories 
+                                    ? `<span class="categories"><i class="fas fa-tags"></i> ${post.Categories}</span>`
+                                    : ''
+                                }
+                                <span class="likes"><i class="fas fa-thumbs-up"></i> ${post.LikeCount}</span>
+                                <span class="dislikes"><i class="fas fa-thumbs-down"></i> ${post.DislikeCount}</span>
+                                <span class="date"><i class="far fa-clock"></i> ${post.CreatedAtHuman}</span>
+                            </div>
+                        </article>
+                    `).join('')
+                    : '<p class="empty-message">You haven\'t liked any posts yet.</p>'
+                }
+            </section>
+        </div>
+    </div>
+    `;
+}
+
 // Handle login form submission
 async function handleLogin(event) {
     event.preventDefault();
