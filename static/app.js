@@ -77,7 +77,7 @@ function renderCreatePostForm() {
     return `
         <div id="createPostForm" style="display: none;">
             <h1>Create a New Post</h1>
-            <form method="POST" action="/post" enctype="multipart/form-data" onsubmit="return validateCategories()">
+            <form method="POST" action="/api/post" enctype="multipart/form-data" onsubmit="handlePostSubmission(event)">
                 <label for="title">Title:</label>
                 <input type="text" id="title" name="title" required>
                 
@@ -114,22 +114,23 @@ function renderSidebar() {
 }
 
 function renderPosts(posts) {
+    console.log(posts)
     return posts.map(post => `
-        <div class="post" data-category="${post.categories}">
-            <p class="posted-on">${post.createdAtHuman}</p>
-            <strong><p>${post.username}</p></strong>
-            <h3>${post.title}</h3>
-            <p>${post.content}</p>
-            ${post.imagePath ? `<img src="${post.imagePath}" alt="Post Image" class="post-image">` : ''}
-            <p class="categories">Categories: <span>${post.categories}</span></p>
+        <div class="post" data-category="${post.Categories}">
+            <p class="posted-on">${post.CreatedAtHuman}</p>
+            <strong><p>${post.Username}</p></strong>
+            <h3>${post.Title}</h3>
+            <p>${post.Content}</p>
+            ${post.ImagePath ? `<img src="${post.ImagePath}" alt="Post Image" class="post-image">` : ''}
+            <p class="categories">Categories: <span>${post.Categories}</span></p>
             <div class="post-actions">
-                <button class="like-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', true)">
-                    <i class="fas fa-thumbs-up"></i> <span class="like-count">${post.likeCount}</span>
+                <button class="like-button" data-post-id="${post.ID}" onclick="toggleLike('${post.ID}', true)">
+                    <i class="fas fa-thumbs-up"></i> <span class="like-count">${post.LikeCount}</span>
                 </button>
-                <button class="dislike-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', false)">
-                    <i class="fas fa-thumbs-down"></i> <span class="dislike-count">${post.dislikeCount}</span>
+                <button class="dislike-button" data-post-id="${post.ID}" onclick="toggleLike('${post.ID}', false)">
+                    <i class="fas fa-thumbs-down"></i> <span class="dislike-count">${post.DislikeCount}</span>
                 </button>
-                <button class="comment-button" onclick="toggleCommentForm('${post.id}')">
+                <button class="comment-button" onclick="toggleCommentForm('${post.ID}')">
                     <i class="fas fa-comment"></i> Comments
                 </button>
             </div>
@@ -141,6 +142,39 @@ function renderPosts(posts) {
 function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+async function handlePostSubmission(event) {
+    event.preventDefault(); // Prevent default form submission
+
+    // Validate categories before proceeding
+    if (!validateCategories()) {
+        return; // Stop execution if no category is selected
+    }
+
+    const form = event.target;
+    const formData = new FormData(form);
+
+    try {
+        const response = await fetch('/api/post', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert('Post submitted successfully!');
+            form.reset(); // Clear the form after submission
+            fetchHomeContent().then(content => document.getElementById('app').innerHTML = content);
+        } else {
+            alert(`Error: ${result.message}`);
+        }
+    } catch (error) {
+        console.error('Error submitting post:', error);
+        alert('Failed to submit post. Please try again.');
+    }
+}
+
 
 
 // Fetch profile content
