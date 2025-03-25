@@ -195,7 +195,15 @@ async function fetchProfileContent() {
                 ${data.CreatedPosts && data.CreatedPosts.length > 0 
                     ? data.CreatedPosts.map(post => `
                         <article class="post">
-                            // ...existing post template...
+                            <h3>${post.Title}</h3>
+                            <p class="post-content">${post.Content}</p>
+        ${post.imagePath ? `<img src="${post.ImagePath}" alt="Post Image" class="post-image" />` : ""}
+        <div class="post-meta">
+            ${post.Categories ? `<span class="categories"><i class="fas fa-tags"></i> ${post.Categories}</span>` : ""}
+            <span class="likes"><i class="fas fa-thumbs-up"></i> ${post.LikeCount}</span>
+            <span class="dislikes"><i class="fas fa-thumbs-down"></i> ${post.DislikeCount}</span>
+            <span class="date"><i class="far fa-clock"></i> ${post.CreatedAtHuman}</span>
+        </div>
                         </article>
                     `).join('')
                     : '<p class="empty-message">You haven\'t created any posts yet.</p>'
