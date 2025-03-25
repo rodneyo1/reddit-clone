@@ -320,3 +320,206 @@ window.addEventListener('hashchange', () => {
 // Initial render
 const initialPath = window.location.hash.replace('#', '') || '/';
 render(initialPath);
+
+
+//  home utils
+let isProcessing = false; // Debounce flag
+
+function toggleLike(postId, isLike) {
+    if (isProcessing) return; // Prevent multiple rapid clicks
+    isProcessing = true;
+
+    fetch('/like', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `post_id=${postId}&is_like=${isLike}`
+    })
+        .then(response => {
+            if (response.status === 401) {
+                // User is not logged in, redirect to login page
+                window.location.href = '/login';
+                return;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.success) {
+                // Update the like and dislike counts
+                const likeCountElement = document.querySelector(`.like-button[data-post-id="${postId}"] .like-count`);
+                const dislikeCountElement = document.querySelector(`.dislike-button[data-post-id="${postId}"] .dislike-count`);
+
+                likeCountElement.textContent = data.like_count;
+                dislikeCountElement.textContent = data.dislike_count;
+
+                // Update button styles
+                const likeButton = document.querySelector(`.like-button[data-post-id="${postId}"]`);
+                const dislikeButton = document.querySelector(`.dislike-button[data-post-id="${postId}"]`);
+
+                if (isLike) {
+                    likeButton.classList.toggle('active');
+                    dislikeButton.classList.remove('active');
+                } else {
+                    dislikeButton.classList.toggle('active');
+                    likeButton.classList.remove('active');
+                }
+            } else if (data && data.success) {
+                console.error('Error:', data.error);
+                alert(data.error); // Optional: Show the error message
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        })
+        .finally(() => {
+            isProcessing = false; // Reset debounce flag
+        });
+}
+
+function toggleCommentLike(commentId, isLike) {
+    if (isProcessing) return; // Prevent multiple rapid clicks
+    isProcessing = true;
+
+    fetch('/comment/like', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `comment_id=${commentId}&is_like=${isLike}`
+    })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(text);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Find the clicked button directly using the data-comment-id attribute
+            const clickedButton = document.querySelector(`button[data-comment-id="${commentId}"][class*="-button"]`);
+            if (!clickedButton) return;
+
+            // Find the parent comment container
+            const comment = clickedButton.closest('.comment');
+            if (!comment) return;
+
+            // Find the like/dislike buttons within this comment
+            const likeButton = comment.querySelector('.like-button[data-comment-id="' + commentId + '"]');
+            const dislikeButton = comment.querySelector('.dislike-button[data-comment-id="' + commentId + '"]');
+
+            if (!likeButton || !dislikeButton) return;
+
+            const likeCountElement = likeButton.querySelector('.like-count');
+            const dislikeCountElement = dislikeButton.querySelector('.dislike-count');
+
+            // Update the counts
+            if (likeCountElement) likeCountElement.textContent = data.likeCount;
+            if (dislikeCountElement) dislikeCountElement.textContent = data.dislikeCount;
+
+            // Update button styles based on userLiked
+            if (data.userLiked === true) {
+                likeButton.classList.add('active');
+                dislikeButton.classList.remove('active');
+            } else if (data.userLiked === false) {
+                dislikeButton.classList.add('active');
+                likeButton.classList.remove('active');
+            } else {
+                // If userLiked is null, remove both active states
+                likeButton.classList.remove('active');
+                dislikeButton.classList.remove('active');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error.message || 'An error occurred. Please try again.');
+        })
+        .finally(() => {
+            isProcessing = false; // Reset debounce flag
+        });
+}
+
+function toggleCreatePost() {
+    const createPostForm = document.getElementById('createPostForm');
+    const postsList = document.getElementById('posts');
+    const postsHeading = document.getElementById('postsHeading');
+
+    if (createPostForm.style.display === 'none') {
+        createPostForm.style.display = 'block';
+        postsList.style.display = 'none';
+        postsHeading.style.display = 'none'; // Hide the heading when the form is shown
+    } else {
+        createPostForm.style.display = 'none';
+        postsList.style.display = 'block';
+        postsHeading.style.display = 'block'; // Show the heading when the form is hidden
+    }
+}
+
+function validateCategories() {
+    const checkboxes = document.querySelectorAll('input[name="category"]');
+    let isChecked = false;
+
+    checkboxes.forEach((checkbox) => {
+        if (checkbox.checked) {
+            isChecked = true;
+        }
+    });
+
+    if (!isChecked) {
+        alert("Please select at least one category.");
+        return false; // Prevent form submission
+    }
+    return true; // Allow form submission
+}
+
+function toggleCommentForm(postId) {
+    const commentForm = document.getElementById(`comment-form-${postId}`);
+    const commentsSection = document.getElementById(`comments-${postId}`);
+    if (commentForm.style.display === 'none') {
+        commentForm.style.display = 'block';
+        commentsSection.style.display = 'block'; // Show comments section when the form is shown
+    } else {
+        commentForm.style.display = 'none';
+        commentsSection.style.display = 'none'; // Hide comments section when the form is hidden
+    }
+}
+
+function toggleReplyForm(commentId) {
+    const replyForm = document.getElementById(`reply-form-${commentId}`);
+    if (replyForm.style.display === 'none') {
+        replyForm.style.display = 'block';
+    } else {
+        replyForm.style.display = 'none';
+    }
+}
+
+function toggleMenu() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.style.display = sidebar.style.display === 'block' ? 'none' : 'block';
+}
+
+// Function to validate the comment form
+function validateCommentForm(event, form) {
+    // Get the textarea element
+    const textarea = form.querySelector('textarea[name="content"]');
+
+    // Check if the textarea is empty or contains only whitespace
+    if (!textarea.value.trim()) {
+        // Prevent form submission
+        event.preventDefault();
+
+        // Alert the user
+        alert("Comment cannot be empty. Please write something before submitting.");
+
+        // Focus on the textarea so the user can continue typing
+        textarea.focus();
+
+        // Return false to prevent form submission
+        return false;
+    }
+
+    // If the textarea is not empty, allow form submission
+    return true;
+}
