@@ -19,15 +19,19 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 	http.Handle("/src/", http.StripPrefix("/src/", http.FileServer(http.Dir("src"))))
-    
-	
-    // Serve HTML for home
+
+	// Serve HTML for home
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "templates/index.html")
+		http.ServeFile(w, r, "static/index.html")
 	})
 
 	// Serve API data for frontend fetch requests
 	http.HandleFunc("/api/home", handlers.HomeHandler)
+	http.HandleFunc("/api/register", handlers.RegisterHandler)
+	http.HandleFunc("/api/profile", handlers.ProfileHandler)
+	http.HandleFunc("/api/login", handlers.LoginHandler)
+	http.HandleFunc("/api/check-login", handlers.CheckLoginHandler)
+	http.HandleFunc("/api/posts", handlers.PostHandler)
 
 	// Initialize the database and OAuth providers
 	handlers.InitDB()
