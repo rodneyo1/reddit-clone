@@ -17,14 +17,22 @@ async function render(path) {
         case '/login':
             app.innerHTML = await fetchLoginContent();
             break;
-        case '/home':
-            app.innerHTML = await fetchHomeContent();
-            break;
         case '/register':
             app.innerHTML = await fetchRegisterContent();
             break;
+        case '/home':
+            if (isLoggedIn()) {
+                app.innerHTML = await fetchHomeContent();
+            } else {
+                window.location.href = '/login'; // Redirect to login if not logged in
+            }
+            break;
         case '/profile':
-            app.innerHTML = await fetchProfileContent();
+            if (isLoggedIn()) {
+                app.innerHTML = await fetchProfileContent();
+            } else {
+                window.location.href = '/login'; // Redirect to login if not logged in
+            }
             break;
         default:
             app.innerHTML = '<h1>404 Not Found</h1>';
