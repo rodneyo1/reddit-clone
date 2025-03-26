@@ -30,7 +30,7 @@
                 <i class="fas fa-sign-out-alt" style="font-size: 24px; color: #4A7C8C; margin-top: 10px;"></i>
             </a>
             {{else}}
-            <a href="/login" class="auth-button login">Login</a>
+            <a id="login-button" class="auth-button login">Login</a>
             <a href="/register" class="auth-button register">Register</a>
             {{end}}
         </nav>
@@ -429,6 +429,7 @@
             return true;
         }
     </script>
+    <script type="module" src="static/app.js"></script>
 </body>
 
 </html>

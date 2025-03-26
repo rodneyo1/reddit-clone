@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	// "fmt"
 	"io"
 	"log"
 	"net/http"
@@ -119,7 +120,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	// Redirect to the posts page after successful creation
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message": "Post created successfully"}`))
 }

@@ -2,11 +2,11 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{.Username}}'s Profile - Forum</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 </head>
 
 <body>
@@ -25,13 +25,13 @@
         <div class="profile-sections">
             <section class="profile-section">
                 <h2><i class="fas fa-pencil-alt"></i> Your Posts</h2>
-                {{if .CreatedPosts}}
-                {{range .CreatedPosts}}
+                {{if .CreatedPosts}} {{range .CreatedPosts}}
                 <article class="post">
                     <h3>{{.Title}}</h3>
                     <p class="post-content">{{.Content}}</p>
-                    {{if .ImagePath}} <!-- Display image if it exists -->
-                    <img src="{{.ImagePath}}" alt="Post Image" class="post-image">
+                    {{if .ImagePath}}
+                    <!-- Display image if it exists -->
+                    <img src="{{.ImagePath}}" alt="Post Image" class="post-image" />
                     {{end}}
                     <div class="post-meta">
                         {{if .Categories}}
@@ -42,21 +42,20 @@
                         <span class="date"><i class="far fa-clock"></i> {{.CreatedAtHuman}}</span>
                     </div>
                 </article>
-                {{end}}
-                {{else}}
+                {{end}} {{else}}
                 <p class="empty-message">You haven't created any posts yet.</p>
                 {{end}}
             </section>
 
             <section class="profile-section">
                 <h2><i class="fas fa-heart"></i> Posts You've Liked</h2>
-                {{if .LikedPosts}}
-                {{range .LikedPosts}}
+                {{if .LikedPosts}} {{range .LikedPosts}}
                 <article class="post">
                     <h3>{{.Title}}</h3>
                     <p class="post-content">{{.Content}}</p>
-                    {{if .ImagePath}} <!-- Display image if it exists -->
-                    <img src="{{.ImagePath}}" alt="Post Image" class="post-image">
+                    {{if .ImagePath}}
+                    <!-- Display image if it exists -->
+                    <img src="{{.ImagePath}}" alt="Post Image" class="post-image" />
                     {{end}}
                     <div class="post-meta">
                         <span class="author"><i class="fas fa-user"></i> {{.Username}}</span>
@@ -68,8 +67,7 @@
                         <span class="date"><i class="far fa-clock"></i>{{.CreatedAtHuman}}</span>
                     </div>
                 </article>
-                {{end}}
-                {{else}}
+                {{end}} {{else}}
                 <p class="empty-message">You haven't liked any posts yet.</p>
                 {{end}}
             </section>
