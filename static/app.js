@@ -60,10 +60,10 @@ async function fetchHomeContent() {
     const data = await response.json();
 
     return `
-        ${data.isLoggedIn ? renderCreatePostForm() : ''}
         <div class="container">
             ${renderSidebar()}
             <main>
+                 ${data.isLoggedIn ? renderCreatePostForm() : ''}
                 <h1 id="postsHeading">All Posts</h1>
                 <div id="posts">${renderPosts(data.posts)}</div>
             </main>
