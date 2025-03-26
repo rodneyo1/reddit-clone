@@ -1,7 +1,7 @@
 // Routes
 const routes = {
     '/': 'login',
-    'home': 'home',
+    '/home': 'home',
     '/login': 'login',
     '/register': 'register',
     '/profile': 'profile'
@@ -21,18 +21,10 @@ async function render(path) {
             app.innerHTML = await fetchRegisterContent();
             break;
         case '/home':
-            if (isLoggedIn()) {
                 app.innerHTML = await fetchHomeContent();
-            } else {
-                window.location.href = '/login'; // Redirect to login if not logged in
-            }
             break;
         case '/profile':
-            if (isLoggedIn()) {
                 app.innerHTML = await fetchProfileContent();
-            } else {
-                window.location.href = '/login'; // Redirect to login if not logged in
-            }
             break;
         default:
             app.innerHTML = '<h1>404 Not Found</h1>';
@@ -187,6 +179,7 @@ async function handlePostSubmission(event) {
 
 // Fetch profile content
 async function fetchProfileContent() {
+    
     const response = await fetch('/api/profile');
     const data = await response.json();
     return `
