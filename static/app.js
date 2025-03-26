@@ -1,7 +1,7 @@
 // Routes
 const routes = {
     '/': 'login',
-    'home': 'home',
+    '/home': 'home',
     '/login': 'login',
     '/register': 'register',
     '/profile': 'profile'
@@ -21,11 +21,7 @@ async function render(path) {
             app.innerHTML = await fetchRegisterContent();
             break;
         case '/home':
-            if (isLoggedIn()) {
                 app.innerHTML = await fetchHomeContent();
-            } else {
-                window.location.href = '/login'; // Redirect to login if not logged in
-            }
             break;
         case '/profile':
             if (isLoggedIn()) {
