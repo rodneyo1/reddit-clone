@@ -241,6 +241,44 @@ async function fetchProfileContent() {
     `;
 }
 
+// Fetch login form content
+async function fetchLoginContent() {
+    return `
+        <div class="auth-container">
+            <h1>Login</h1>
+
+            <!-- Google Sign-In Button -->
+            <a href="/auth/google/login" class="google-btn">
+                <img src="/src/google.jpeg" alt="Google Logo">
+                <span>Sign in with Google</span>
+            </a>
+
+            <!-- GitHub Sign-In Button -->
+            <a href="/auth/github/login" class="github-btn">
+                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo">
+                <span>Sign in with GitHub</span>
+            </a>
+
+            <div class="oauth-divider">
+                <span>or</span>
+            </div>
+
+            <!-- Traditional Login Form -->
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
+                <br>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+                <br>
+                <button type="submit">Login</button>
+            </form>
+            <p>Don't have an account? <a href="#/register">Register here</a></p>
+            <p class="home-link"><a href="#/home">← Back to Homepage</a></p>
+        </div>
+    `;
+}
+
 // Handle login form submission
 async function handleLogin(event) {
     event.preventDefault();
