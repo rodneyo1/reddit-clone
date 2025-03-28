@@ -26,6 +26,12 @@ async function render(path) {
         case '/profile':
                 app.innerHTML = await fetchProfileContent();
             break;
+        case '/filter':
+            // Extract category from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const category = urlParams.get('category') || 'all';
+            app.innerHTML = await fetchFilteredPosts(category);
+            break;
         default:
             app.innerHTML = '<h1>404 Not Found</h1>';
     }
@@ -58,6 +64,32 @@ async function fetchCategories(){
 
 const CATEGORIES = await fetchCategories()
 console.log(CATEGORIES)
+
+// Add function to handle category filtering
+async function fetchFilteredPosts(category) {
+    console.log("feching filtered posts")
+    try {
+        const response = await fetch(`/api/filter?category=${category}`);
+        const data = await response.json();
+        console.log(data)
+        return `
+            <div class="container">
+                ${renderSidebar()}
+                <main>
+                    ${data.IsLoggedIn ? renderCreatePostForm() : ''}
+                    <h1 id="postsHeading">
+                        ${category === 'all' ? 'All Posts' : `Posts in ${capitalize(category)} Category`}
+                    </h1>
+                    <div id="posts">${renderPosts(data.Posts)}</div>
+                </main>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error fetching filtered posts:', error);
+        return '<h1>Error loading posts</h1>';
+    }
+}
+
 
 async function fetchHomeContent() {
     const response = await fetch('/api/home');
@@ -110,8 +142,8 @@ function renderSidebar() {
         <aside class="sidebar" id="sidebar">
             <h3>Categories</h3>
             <ul>
-                <li><a href="#/">All Posts</a></li>
-                ${CATEGORIES.map(cat => `<li><a href="/filter?category=${cat}">${capitalize(cat)}</a></li>`).join('')}
+                <li><a href="#/home">All Posts</a></li>
+                ${CATEGORIES.map(cat => `<li><a href="#/filter?category=${cat}">${capitalize(cat)}</a></li>`).join('')}
             </ul>
         </aside>
     `;

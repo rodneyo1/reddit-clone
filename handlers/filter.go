@@ -35,6 +35,7 @@ func isValidCategory(category string) bool {
 }
 
 func FilterHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("filtering")
 	// Check if the user is logged in
 	var userID string
 	sessionCookie, err := r.Cookie("session_id")
@@ -218,6 +219,7 @@ ORDER BY c.created_at DESC
 	// 	RenderError(w, r, "Error rendering page", http.StatusInternalServerError)
 	// 	return
 	// }
+	fmt.Println("filtering done")
 }
 
 
