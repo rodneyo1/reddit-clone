@@ -219,3 +219,27 @@ ORDER BY c.created_at DESC
 	// 	return
 	// }
 }
+
+
+func GetCategoriesHandler(w http.ResponseWriter, r *http.Request) {
+    // Only allow GET requests
+    if r.Method != http.MethodGet {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    // Create response structure
+    response := map[string][]string{
+        "categories": validCategories,
+    }
+
+    // Set content type header
+    w.Header().Set("Content-Type", "application/json")
+
+    // Encode and send response
+    if err := json.NewEncoder(w).Encode(response); err != nil {
+        log.Printf("Error encoding categories: %v", err)
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+    }
+}

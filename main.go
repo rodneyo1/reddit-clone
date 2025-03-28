@@ -26,6 +26,7 @@ func main() {
 	http.HandleFunc("/api/login", handlers.LoginHandler)
 	http.HandleFunc("/api/filter", handlers.FilterHandler)
 	http.HandleFunc("/api/profile", handlers.ProfileHandler)
+	http.HandleFunc("/api/categories", handlers.GetCategoriesHandler)
 	
 	// API endpoints for actions (post, like, comment)
 	http.HandleFunc("/api/post", handlers.PostHandler)

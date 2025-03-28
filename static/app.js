@@ -49,11 +49,15 @@ async function render(path) {
 }
 
 // To be replaced with actual fetch functions and backend api & query
-const CATEGORIES = [
-    "technology", "general", "lifestyle", "entertainment", "gaming",
-    "food", "business", "religion", "health", "music",
-    "sports", "beauty", "jobs"
-];
+
+async function fetchCategories(){
+    const response = await fetch('/api/categories');
+    const data = await response.json();
+    return data.categories;
+}
+
+const CATEGORIES = await fetchCategories()
+console.log(CATEGORIES)
 
 async function fetchHomeContent() {
     const response = await fetch('/api/home');
@@ -578,8 +582,19 @@ function toggleReplyForm(commentId) {
     }
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    const menuToggle = document.getElementById('menuToggle');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleMenu);
+    }
+});
+
 function toggleMenu() {
     const sidebar = document.getElementById('sidebar');
+    if (!sidebar) {
+        console.error('Sidebar element not found');
+        return;
+    }
     sidebar.style.display = sidebar.style.display === 'block' ? 'none' : 'block';
 }
 
