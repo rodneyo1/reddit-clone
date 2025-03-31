@@ -32,6 +32,7 @@ func main() {
 	http.HandleFunc("/api/login", handlers.LoginHandler)
 	http.HandleFunc("/api/check-login", handlers.CheckLoginHandler)
 	http.HandleFunc("/api/posts", handlers.PostHandler)
+	http.HandleFunc("/api/logout", handlers.LogoutHandler)
 
 	// Initialize the database and OAuth providers
 	handlers.InitDB()

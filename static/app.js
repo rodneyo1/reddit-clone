@@ -4,7 +4,8 @@ const routes = {
     '/login': 'login',
     '/register': 'register',
     '/profile': 'profile',
-    '/home': 'home'
+    '/home': 'home',
+    '/logout': 'logout'
 };
 
 // Toggle create post form
@@ -49,6 +50,10 @@ async function render(path) {
             case '/profile':
                 app.innerHTML = await fetchProfileContent();
                 break;
+            case '/logout':
+                await handleLogout();
+                window.location.hash = '/login';
+                break;
             case '/home':
                 app.innerHTML = await fetchHomeContent();
                 // Attach form submission handler
@@ -79,7 +84,12 @@ async function render(path) {
             <a href="#/" class="auth-button login">Login</a>
             <a href="#/register" class="auth-button register">Register</a>
         `;
-
+        if (isLoggedIn) {
+            document.getElementById('logout-btn')?.addEventListener('click', async function(e) {
+                e.preventDefault();
+                await handleLogout();
+            });
+        }
     // Attach create post button event listener
     if (isLoggedIn) {
         document.getElementById('create-post-btn')?.addEventListener('click', function(e) {
@@ -374,6 +384,29 @@ async function handleLogin(event) {
     } catch (error) {
         console.error('Login error:', error);
         alert('Login failed. Please try again.');
+    }
+}
+
+async function handleLogout() {
+    try {
+        const response = await fetch('/api/logout', {
+            method: 'POST',
+            credentials: 'include' // Important for cookies
+        });
+
+        if (!response.ok) {
+            throw new Error('Logout failed');
+        }
+
+        // Clear client-side state if needed
+        localStorage.removeItem('authState');
+        
+        // Force a full refresh to ensure all state is cleared
+        window.location.reload();
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert('Error during logout. Please try again.');
     }
 }
 
