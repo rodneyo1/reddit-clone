@@ -5,12 +5,29 @@ const routes = {
     '/register': 'register',
     '/profile': 'profile',
     '/home': 'home',
-    '/logout': 'logout'
+    '/logout': 'logout',
+    '/filter': 'filter'
 };
+
+const validCategories = [
+    "technology",
+    "general",
+    "lifestyle",
+    "entertainment",
+    "gaming",
+    "food",
+    "business",
+    "religion",
+    "health",
+    "music",
+    "sports",
+    "beauty",
+    "jobs"
+];
 
 // Toggle create post form
 function toggleCreatePost() {
-    console.log("Toggle create post function called");
+    // console.log("Toggle create post function called");
     
     const createPostForm = document.getElementById('createPostForm');
     const postsList = document.getElementById('posts');
@@ -32,35 +49,43 @@ function toggleCreatePost() {
 
 // Render content based on the route
 async function render(path) {
-    console.log(`Rendering path: ${path}`);
+    // console.log(`Rendering path: ${path}`);
     const app = document.getElementById('app');
     const authButtons = document.getElementById('auth-buttons');
 
     try {
-        switch (path) {
-            case '/':
-                app.innerHTML = await fetchLoginContent();
-                break;
-            case '/login':
-                app.innerHTML = await fetchLoginContent();
-                break;
-            case '/register':
-                app.innerHTML = await fetchRegisterContent();
-                break;
-            case '/profile':
-                app.innerHTML = await fetchProfileContent();
-                break;
-            case '/logout':
-                await handleLogout();
-                window.location.hash = '/login';
-                break;
-            case '/home':
-                app.innerHTML = await fetchHomeContent();
-                // Attach form submission handler
-                document.getElementById('post-form')?.addEventListener('submit', handlePostSubmit);
-                break;
-            default:
-                app.innerHTML = '<h1>404 Not Found</h1>';
+        if (path.startsWith('/filter')) {
+            const queryString = path.split('?')[1];
+            const params = new URLSearchParams(queryString);
+            const category = params.get('category');
+            if (!validCategories.includes(category) && category !== 'all') {
+                app.innerHTML = '<p class="error-message">Invalid category selected</p>';
+                return;
+            }
+            app.innerHTML = await fetchFilteredContent(category);
+        } else {
+            switch (path) {
+                case '/':
+                case '/login':
+                    app.innerHTML = await fetchLoginContent();
+                    break;
+                case '/register':
+                    app.innerHTML = await fetchRegisterContent();
+                    break;
+                case '/profile':
+                    app.innerHTML = await fetchProfileContent();
+                    break;
+                case '/logout':
+                    await handleLogout();
+                    window.location.hash = '/login';
+                    break;
+                case '/home':
+                    app.innerHTML = await fetchHomeContent();
+                    document.getElementById('post-form')?.addEventListener('submit', handlePostSubmit);
+                    break;
+                default:
+                    app.innerHTML = '<h1>404 Not Found</h1>';
+            }
         }
     } catch (error) {
         console.error('Error rendering content:', error);
@@ -84,18 +109,105 @@ async function render(path) {
             <a href="#/" class="auth-button login">Login</a>
             <a href="#/register" class="auth-button register">Register</a>
         `;
-        if (isLoggedIn) {
-            document.getElementById('logout-btn')?.addEventListener('click', async function(e) {
-                e.preventDefault();
-                await handleLogout();
-            });
-        }
+
     // Attach create post button event listener
     if (isLoggedIn) {
         document.getElementById('create-post-btn')?.addEventListener('click', function(e) {
             e.preventDefault();
             toggleCreatePost();
         });
+    }
+}
+
+// Helper function to render individual posts
+function renderPost(post) {
+    const p = normalizePost(post);
+    return `
+        <div class="post" data-category="${p.categories}">
+            <p class="posted-on">${p.createdAtHuman}</p>
+            <strong><p>${p.username}</p></strong>
+            <h3>${p.title}</h3>
+            <p>${p.content}</p>
+            ${p.imagePath ? `<img src="${p.imagePath}" alt="Post Image" class="post-image">` : ''}
+            <p class="categories">Categories: <span>${p.categories}</span></p>
+            <div class="post-actions">
+                <button class="like-button" data-post-id="${p.id}" onclick="toggleLike('${p.id}', true)">
+                    <i class="fas fa-thumbs-up"></i> <span class="like-count">${p.likeCount}</span>
+                </button>
+                <button class="dislike-button" data-post-id="${p.id}" onclick="toggleLike('${p.id}', false)">
+                    <i class="fas fa-thumbs-down"></i> <span class="dislike-count">${p.dislikeCount}</span>
+                </button>
+                <button class="comment-button" onclick="toggleCommentForm('${p.id}')">
+                    <i class="fas fa-comment"></i> Comments
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Fetch filtered content by category
+async function fetchFilteredContent(category) {
+    try {
+        const response = await fetch(`/api/filter?category=${encodeURIComponent(category)}`);
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+        const data = await response.json();
+        const isLoggedIn = await checkLoginStatus();
+        const posts = data.Posts || data.posts || [];
+
+        return `
+            <div class="container">
+                <aside class="sidebar" id="sidebar">
+                    <h3>Categories</h3>
+                    <ul>
+                        <li><a href="#/home">All Posts</a></li>
+                        ${validCategories.map(cat => `
+                            <li><a href="#/filter?category=${cat}" class="${cat === category ? 'active' : ''}">
+                                ${cat.charAt(0).toUpperCase() + cat.slice(1)}
+                            </a></li>
+                        `).join('')}
+                    </ul>
+                </aside>
+                <main>
+                    ${isLoggedIn ? `
+                    <div id="createPostForm" style="display:none; background:white; padding:20px; margin-bottom:20px; border-radius:8px;">
+                        <h1>Create a New Post</h1>
+                        <form id="post-form" enctype="multipart/form-data">
+                            <label for="post-title">Title:</label>
+                            <input type="text" id="post-title" name="title" required>
+                            <br>
+                            <label for="post-content">Content:</label>
+                            <textarea id="post-content" name="content" required></textarea>
+                            <br>
+                            <label for="post-image">Image (optional, max 20MB):</label>
+                            <input type="file" id="post-image" name="image" accept="image/jpeg,image/png,image/gif">
+                            <br>
+                            <label>Categories (select at least one):</label>
+                            <div class="checkbox-group">
+                                ${validCategories.map(cat => `
+                                    <label><input type="checkbox" name="category" value="${cat}"> ${cat.charAt(0).toUpperCase() + cat.slice(1)}</label>
+                                `).join('')}
+                            </div>
+                            <br>
+                            <button type="submit">Post</button>
+                            <button type="button" onclick="toggleCreatePost()">Cancel</button>
+                        </form>
+                    </div>
+                    ` : ''}
+                    
+                    <h1 id="postsHeading">${category === 'all' ? 'All Posts' : `Posts in ${category.charAt(0).toUpperCase() + category.slice(1)}`}</h1>
+                    <div id="posts">
+                        ${posts.length > 0 ? 
+                            posts.map(post => renderPost(post)).join('') :
+                            '<p class="empty-message">No posts found in this category</p>'
+                        }
+                    </div>
+                </main>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error fetching filtered content:', error);
+        return '<p class="error-message">Error loading filtered posts. Please try again.</p>';
     }
 }
 
@@ -176,95 +288,93 @@ async function fetchProfileContent() {
 
 // Fetch home content
 async function fetchHomeContent() {
-    const response = await fetch('/api/home');
-    const data = await response.json();
-    const isLoggedIn = await checkLoginStatus();
-    
-    return `
-        <div class="container">
-            <aside class="sidebar" id="sidebar">
-                <h3>Categories</h3>
-                <ul>
-                    <li><a href="#/home">All Posts</a></li>
-                    <li><a href="#/filter?category=technology">Technology</a></li>
-                    <li><a href="#/filter?category=general">General</a></li>
-                    <li><a href="#/filter?category=lifestyle">Lifestyle</a></li>
-                    <li><a href="#/filter?category=entertainment">Entertainment</a></li>
-                    <li><a href="#/filter?category=gaming">Gaming</a></li>
-                    <li><a href="#/filter?category=food">Food</a></li>
-                    <li><a href="#/filter?category=business">Business</a></li>
-                    <li><a href="#/filter?category=religion">Religion</a></li>
-                    <li><a href="#/filter?category=health">Health</a></li>
-                    <li><a href="#/filter?category=music">Music</a></li>
-                    <li><a href="#/filter?category=sports">Sports</a></li>
-                    <li><a href="#/filter?category=beauty">Beauty</a></li>
-                    <li><a href="#/filter?category=jobs">Jobs</a></li>
-                </ul>
-            </aside>
-            <main>
-                ${isLoggedIn ? `
-                <div id="createPostForm" style="display:none; background:white; padding:20px; margin-bottom:20px; border-radius:8px;">
-                    <h1>Create a New Post</h1>
-                    <form id="post-form" enctype="multipart/form-data">
-                        <label for="post-title">Title:</label>
-                        <input type="text" id="post-title" name="title" required>
-                        <br>
-                        <label for="post-content">Content:</label>
-                        <textarea id="post-content" name="content" required></textarea>
-                        <br>
-                        <label for="post-image">Image (optional, max 20MB):</label>
-                        <input type="file" id="post-image" name="image" accept="image/jpeg,image/png,image/gif">
-                        <br>
-                        <label>Categories (select at least one):</label>
-                        <div class="checkbox-group">
-                            <label><input type="checkbox" name="category" value="technology"> Technology</label>
-                            <label><input type="checkbox" name="category" value="general"> General</label>
-                            <label><input type="checkbox" name="category" value="lifestyle"> Lifestyle</label>
-                            <label><input type="checkbox" name="category" value="entertainment"> Entertainment</label>
-                            <label><input type="checkbox" name="category" value="gaming"> Gaming</label>
-                            <label><input type="checkbox" name="category" value="food"> Food</label>
-                            <label><input type="checkbox" name="category" value="business"> Business</label>
-                            <label><input type="checkbox" name="category" value="religion"> Religion</label>
-                            <label><input type="checkbox" name="category" value="health"> Health</label>
-                            <label><input type="checkbox" name="category" value="music"> Music</label>
-                            <label><input type="checkbox" name="category" value="sports"> Sports</label>
-                            <label><input type="checkbox" name="category" value="beauty"> Beauty</label>
-                            <label><input type="checkbox" name="category" value="jobs"> Jobs</label>
-                        </div>
-                        <br>
-                        <button type="submit">Post</button>
-                        <button type="button" onclick="toggleCreatePost()">Cancel</button>
-                    </form>
-                </div>
-                ` : ''}
-                
-                <h1 id="postsHeading">All Posts</h1>
-                <div id="posts">
-                    ${data.posts.map(post => `
-                        <div class="post" data-category="${post.categories || post.Categories}">
-                            <p class="posted-on">${post.createdAtHuman || post.CreatedAtHuman}</p>
-                            <strong><p>${post.username || post.Username}</p></strong>
-                            <h3>${post.title || post.Title}</h3>
-                            <p>${post.content  || post.Content}</p>
-                            ${post.imagePath || post.ImagePath  ? `<img src="${post.imagePath || post.ImagePath}" alt="Post Image" class="post-image">` : ''}
-                            <p class="categories">Categories: <span>${post.categories || post.Categories}</span></p>
-                            <div class="post-actions">
-                                <button class="like-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', true)">
-                                    <i class="fas fa-thumbs-up"></i> <span class="like-count">${post.likeCount}</span>
-                                </button>
-                                <button class="dislike-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', false)">
-                                    <i class="fas fa-thumbs-down"></i> <span class="dislike-count">${post.dislikeCount}</span>
-                                </button>
-                                <button class="comment-button" onclick="toggleCommentForm('${post.id}')">
-                                    <i class="fas fa-comment"></i> Comments
-                                </button>
+    try {
+        const response = await fetch('/api/home');
+        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+        
+        const data = await response.json();
+        const isLoggedIn = await checkLoginStatus();
+        const posts = data.Posts || data.posts || [];
+
+        return `
+            <div class="container">
+                <aside class="sidebar" id="sidebar">
+                    <h3>Categories</h3>
+                    <ul>
+                        <li><a href="#/home">All Posts</a></li>
+                        ${validCategories.map(cat => `
+                            <li><a href="#/filter?category=${cat}">
+                                ${cat.charAt(0).toUpperCase() + cat.slice(1)}
+                            </a></li>
+                        `).join('')}
+                    </ul>
+                </aside>
+                <main>
+                    ${isLoggedIn ? `
+                    <div id="createPostForm" style="display:none; background:white; padding:20px; margin-bottom:20px; border-radius:8px;">
+                        <h1>Create a New Post</h1>
+                        <form id="post-form" enctype="multipart/form-data">
+                            <label for="post-title">Title:</label>
+                            <input type="text" id="post-title" name="title" required>
+                            <br>
+                            <label for="post-content">Content:</label>
+                            <textarea id="post-content" name="content" required></textarea>
+                            <br>
+                            <label for="post-image">Image (optional, max 20MB):</label>
+                            <input type="file" id="post-image" name="image" accept="image/jpeg,image/png,image/gif">
+                            <br>
+                            <label>Categories (select at least one):</label>
+                            <div class="checkbox-group">
+                                ${validCategories.map(cat => `
+                                    <label><input type="checkbox" name="category" value="${cat}"> ${cat.charAt(0).toUpperCase() + cat.slice(1)}</label>
+                                `).join('')}
                             </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </main>
-        </div>
-    `;
+                            <br>
+                            <button type="submit">Post</button>
+                            <button type="button" onclick="toggleCreatePost()">Cancel</button>
+                        </form>
+                    </div>
+                    ` : ''}
+                    
+                    <h1 id="postsHeading">All Posts</h1>
+                    <div id="posts">
+                        ${posts.length > 0 ? 
+                            posts.map(post => renderPost(post)).join('') :
+                            '<p class="empty-message">No posts found</p>'
+                        }
+                    </div>
+                </main>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error fetching home content:', error);
+        return '<p class="error-message">Error loading posts. Please try again.</p>';
+    }
+}
+
+function normalizePost(post) {
+    return {
+        id: post.id || post.ID,
+        title: post.title || post.Title,
+        content: post.content || post.Content,
+        username: post.username || post.Username,
+        categories: post.categories || post.Categories,
+        imagePath: post.imagePath || post.ImagePath,
+        likeCount: post.likeCount || post.LikeCount || 0,
+        dislikeCount: post.dislikeCount || post.DislikeCount || 0,
+        createdAtHuman: post.createdAtHuman || post.CreatedAtHuman || formatDate(post.createdAt || post.CreatedAt)
+    };
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
 // Validate categories before submission
@@ -309,7 +419,7 @@ async function handlePostSubmit(event) {
                 document.getElementById('post-form')?.addEventListener('submit', handlePostSubmit);
             }
         } else {
-            const error = await response.json();z
+            const error = await response.json();
             alert(error.error || 'Failed to create post');
         }
     } catch (error) {
@@ -391,17 +501,14 @@ async function handleLogout() {
     try {
         const response = await fetch('/api/logout', {
             method: 'POST',
-            credentials: 'include' // Important for cookies
+            credentials: 'include'
         });
 
         if (!response.ok) {
             throw new Error('Logout failed');
         }
 
-        // Clear client-side state if needed
         localStorage.removeItem('authState');
-        
-        // Force a full refresh to ensure all state is cleared
         window.location.reload();
         
     } catch (error) {
@@ -513,5 +620,7 @@ window.addEventListener('hashchange', () => {
 const initialPath = window.location.hash.replace('#', '') || '/';
 render(initialPath);
 
-// Make toggleCreatePost available globally
+// Make functions available globally
 window.toggleCreatePost = toggleCreatePost;
+window.toggleLike = toggleLike; // Make sure this function exists
+window.toggleCommentForm = toggleCommentForm; // Make sure this function exists
