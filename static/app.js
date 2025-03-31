@@ -231,13 +231,13 @@ async function fetchHomeContent() {
                 <h1 id="postsHeading">All Posts</h1>
                 <div id="posts">
                     ${data.posts.map(post => `
-                        <div class="post" data-category="${post.categories}">
-                            <p class="posted-on">${post.createdAtHuman}</p>
-                            <strong><p>${post.username}</p></strong>
-                            <h3>${post.title}</h3>
-                            <p>${post.content}</p>
-                            ${post.imagePath ? `<img src="${post.imagePath}" alt="Post Image" class="post-image">` : ''}
-                            <p class="categories">Categories: <span>${post.categories}</span></p>
+                        <div class="post" data-category="${post.categories || post.Categories}">
+                            <p class="posted-on">${post.createdAtHuman || post.CreatedAtHuman}</p>
+                            <strong><p>${post.username || post.Username}</p></strong>
+                            <h3>${post.title || post.Title}</h3>
+                            <p>${post.content  || post.Content}</p>
+                            ${post.imagePath || post.ImagePath  ? `<img src="${post.imagePath || post.ImagePath}" alt="Post Image" class="post-image">` : ''}
+                            <p class="categories">Categories: <span>${post.categories || post.Categories}</span></p>
                             <div class="post-actions">
                                 <button class="like-button" data-post-id="${post.id}" onclick="toggleLike('${post.id}', true)">
                                     <i class="fas fa-thumbs-up"></i> <span class="like-count">${post.likeCount}</span>
@@ -299,7 +299,7 @@ async function handlePostSubmit(event) {
                 document.getElementById('post-form')?.addEventListener('submit', handlePostSubmit);
             }
         } else {
-            const error = await response.json();
+            const error = await response.json();z
             alert(error.error || 'Failed to create post');
         }
     } catch (error) {
