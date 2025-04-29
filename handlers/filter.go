@@ -76,7 +76,7 @@ func FilterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Query to fetch posts based on the selected category
 	query := `
-		SELECT p.id, p.title, p.content, p.image_path, GROUP_CONCAT(pc.category) as categories, 
+		SELECT p.id, p.title, p.content, p.image_path, GROUP_CONCAT(DISTINCT pc.category) as categories, 
 		u.username, p.created_at, 
 		COALESCE(l.like_count, 0) AS like_count,
 		COALESCE(l.dislike_count, 0) AS dislike_count
