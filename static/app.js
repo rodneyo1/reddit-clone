@@ -52,6 +52,7 @@ async function render(path) {
     // console.log(`Rendering path: ${path}`);
     const app = document.getElementById('app');
     const authButtons = document.getElementById('auth-buttons');
+    const isLoggedIn = await checkLoginStatus();
 
     try {
         if (path.startsWith('/filter')) {
@@ -67,9 +68,17 @@ async function render(path) {
             switch (path) {
                 case '/':
                 case '/login':
+                    if (isLoggedIn) {
+                        window.location.hash = '/home';
+                        return;
+                    }
                     app.innerHTML = await fetchLoginContent();
                     break;
                 case '/register':
+                    if (isLoggedIn) {
+                        window.location.hash = '/home';
+                        return;
+                    }
                     app.innerHTML = await fetchRegisterContent();
                     break;
                 case '/profile':
@@ -92,8 +101,16 @@ async function render(path) {
         app.innerHTML = '<p class="error-message">Error loading content. Please try again.</p>';
     }
 
-    // Update auth buttons based on login status
-    const isLoggedIn = await checkLoginStatus();
+
+    
+    // const isLoggedIn = await checkLoginStatus();
+    
+    const logo = document.getElementById('logo');
+    // Update logo link
+if (logo) {
+    logo.innerHTML = `<a href="${isLoggedIn ? '#/home' : '#/'}" class="logo-link">Forum</a>`;
+}
+
     authButtons.innerHTML = isLoggedIn
         ? `
             <div class="profile-icon" style="position: relative;">
