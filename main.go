@@ -36,6 +36,7 @@ func main() {
 	http.HandleFunc("/api/filter", handlers.FilterHandler)
 	http.HandleFunc("/api/like", handlers.LikeHandler)
 
+
 	// Initialize the database and OAuth providers
 	handlers.InitDB()
 	handlers.InitGoogleOAuth()
