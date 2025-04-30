@@ -119,6 +119,37 @@ async function render(path) {
     }
 }
 
+// Add to your utility functions
+function updateLikeUI(postId, likeCount, dislikeCount, isLike) {
+    const likeBtn = document.querySelector(`.like-button[data-post-id="${postId}"]`);
+    const dislikeBtn = document.querySelector(`.dislike-button[data-post-id="${postId}"]`);
+    
+    // Update counts
+    if (likeBtn) likeBtn.querySelector('.like-count').textContent = likeCount;
+    if (dislikeBtn) dislikeBtn.querySelector('.dislike-count').textContent = dislikeCount;
+    
+    // Update active states
+    if (isLike !== undefined) {
+        if (isLike) {
+            likeBtn?.classList.add('active');
+            dislikeBtn?.classList.remove('active');
+        } else {
+            dislikeBtn?.classList.add('active');
+            likeBtn?.classList.remove('active');
+        }
+    }
+}
+
+function normalizeLikePost(post) {
+    return {
+        ...post,
+        likeCount: post.likeCount || post.LikeCount || 0,
+        dislikeCount: post.dislikeCount || post.DislikeCount || 0,
+        userLiked: post.userLiked || false,
+        userDisliked: post.userDisliked || false
+    };
+}
+
 // Helper function to render individual posts
 function renderPost(post) {
     const p = normalizePost(post);
@@ -131,10 +162,10 @@ function renderPost(post) {
             ${p.imagePath ? `<img src="${p.imagePath}" alt="Post Image" class="post-image">` : ''}
             <p class="categories">Categories: <span>${p.categories}</span></p>
             <div class="post-actions">
-                <button class="like-button" data-post-id="${p.id}" onclick="toggleLike('${p.id}', true)">
+                <button class="like-button ${p.userLiked ? 'active' : ''}" data-post-id="${p.id}" onclick="handleLikeAction('${p.id}', true)">
                     <i class="fas fa-thumbs-up"></i> <span class="like-count">${p.likeCount}</span>
                 </button>
-                <button class="dislike-button" data-post-id="${p.id}" onclick="toggleLike('${p.id}', false)">
+                <button class="dislike-button ${p.userDisliked ? 'active' : ''}" data-post-id="${p.id}" onclick="handleLikeAction('${p.id}', false)">
                     <i class="fas fa-thumbs-down"></i> <span class="dislike-count">${p.dislikeCount}</span>
                 </button>
                 <button class="comment-button" onclick="toggleCommentForm('${p.id}')">
@@ -143,6 +174,41 @@ function renderPost(post) {
             </div>
         </div>
     `;
+}
+
+let likeProcessing = false;
+
+async function handleLikeAction(postId, isLike) {
+    if (likeProcessing) return;
+    likeProcessing = true;
+    
+    try {
+        const response = await fetch('/api/like', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `post_id=${postId}&is_like=${isLike}`
+        });
+
+        if (response.status === 401) {
+            window.location.hash = '#/login';
+            return;
+        }
+
+        const data = await response.json();
+        
+        if (data.success) {
+            updateLikeUI(postId, data.like_count, data.dislike_count, isLike);
+        } else {
+            alert(data.error || 'Failed to process like/dislike');
+        }
+    } catch (error) {
+        console.error('Like action failed:', error);
+        alert('An error occurred. Please try again.');
+    } finally {
+        likeProcessing = false;
+    }
 }
 
 // Fetch filtered content by category
@@ -362,6 +428,8 @@ function normalizePost(post) {
         imagePath: post.imagePath || post.ImagePath,
         likeCount: post.likeCount || post.LikeCount || 0,
         dislikeCount: post.dislikeCount || post.DislikeCount || 0,
+        userLiked: post.userLiked || false,
+        userDisliked: post.userDisliked || false,
         createdAtHuman: post.createdAtHuman || post.CreatedAtHuman || formatDate(post.createdAt || post.CreatedAt)
     };
 }
@@ -622,5 +690,5 @@ render(initialPath);
 
 // Make functions available globally
 window.toggleCreatePost = toggleCreatePost;
-window.toggleLike = toggleLike; // Make sure this function exists
+window.handleLikeAction = handleLikeAction; // Make sure this function exists
 window.toggleCommentForm = toggleCommentForm; // Make sure this function exists
