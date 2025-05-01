@@ -87,6 +87,8 @@ async function render(path) {
                 case '/logout':
                     await handleLogout();
                     window.location.hash = '/login';
+                    window.location.reload();
+                    return
                     break;
                 case '/home':
                     app.innerHTML = await fetchHomeContent();
