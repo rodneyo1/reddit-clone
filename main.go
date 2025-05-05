@@ -35,6 +35,12 @@ func main() {
 	http.HandleFunc("/api/logout", handlers.LogoutHandler)
 	http.HandleFunc("/api/filter", handlers.FilterHandler)
 	http.HandleFunc("/api/like", handlers.LikeHandler)
+	http.HandleFunc("/api/comment", handlers.CommentHandler)
+	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)
+	http.HandleFunc("/auth/google/login", handlers.HandleGoogleLogin)
+	http.HandleFunc("/auth/google/callback", handlers.HandleGoogleCallback)
+	http.HandleFunc("/auth/github/login", handlers.HandleGithubLogin)
+	http.HandleFunc("/auth/github/callback", handlers.HandleGithubCallback)
 	
 
 	// Initialize the database and OAuth providers
