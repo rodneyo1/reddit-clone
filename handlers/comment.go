@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"database/sql"
+	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,101 +11,173 @@ import (
 
 var PostID int
 
-// Comment handler for processing form submissions
+// CommentHandler handles POST requests for creating new comments
 func CommentHandler(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Content-Type", "application/json")
+
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
 		return
 	}
 
-	postID := r.FormValue("post_id")
-	postIDInt, err := strconv.Atoi(postID)
+	// Parse JSON request
+	var request struct {
+		PostID   int    `json:"post_id"`
+		Content  string `json:"content"`
+		ParentID *int   `json:"parent_id,omitempty"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		http.Error(w, "Invalid post ID format", http.StatusBadRequest)
-		return
-	} else {
-		PostID = postIDInt
-	}
-	content := r.FormValue("content")
-	parentID := r.FormValue("parent_id") // New: Get parent comment ID if this is a reply
-	userID := GetUserIdFromSession(w, r) // Fetch user ID from session
-
-	if userID == "" {
-		http.Error(w, "Please log in to comment on posts", http.StatusUnauthorized)
+		log.Println("JSON parse error:", err)
+		http.Error(w, `{"error":"Invalid request format"}`, http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
-	if postID == "" {
-		http.Error(w, "Post ID is required", http.StatusBadRequest)
+	if request.PostID <= 0 {
+		http.Error(w, `{"error":"Invalid post ID"}`, http.StatusBadRequest)
 		return
 	}
 
-	if content == "" {
-		http.Error(w, "Comment content cannot be empty", http.StatusBadRequest)
+	if request.Content == "" {
+		http.Error(w, `{"error":"Comment content cannot be empty"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Get user from session
+	userID := GetUserIdFromSession(w, r)
+	if userID == "" {
+		http.Error(w, `{"error":"Please log in to comment"}`, http.StatusUnauthorized)
 		return
 	}
 
 	// Start a transaction
 	tx, err := db.Begin()
 	if err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		log.Println("Database begin error:", err)
+		http.Error(w, `{"error":"Database error"}`, http.StatusInternalServerError)
 		return
 	}
 	defer tx.Rollback()
 
-	if parentID != "" {
-		// Convert parentID to int
-		parentIDInt, err := strconv.Atoi(parentID)
-		if err != nil {
-			http.Error(w, "Invalid parent comment ID format", http.StatusBadRequest)
-			return
-		}
-
-		// Verify that the parent comment exists
+	if request.ParentID != nil {
+		// Verify that the parent comment exists and belongs to the same post
 		var parentPostID int
-		err = db.QueryRow("SELECT post_id FROM comments WHERE id = ?", parentIDInt).Scan(&parentPostID)
+		err = tx.QueryRow("SELECT post_id FROM comments WHERE id = ?", *request.ParentID).Scan(&parentPostID)
 		if err == sql.ErrNoRows {
-			http.Error(w, "Parent comment not found", http.StatusNotFound)
+			http.Error(w, `{"error":"Parent comment not found"}`, http.StatusNotFound)
 			return
 		} else if err != nil {
-			http.Error(w, "Database error", http.StatusInternalServerError)
+			log.Println("Parent comment check error:", err)
+			http.Error(w, `{"error":"Database error"}`, http.StatusInternalServerError)
 			return
 		}
 
-		// Proceed with inserting the reply since the parent comment exists
+		if parentPostID != request.PostID {
+			http.Error(w, `{"error":"Parent comment doesn't belong to this post"}`, http.StatusBadRequest)
+			return
+		}
+
+		// Insert reply
 		_, err = tx.Exec(
 			"INSERT INTO comments (post_id, user_id, content, parent_id, created_at) VALUES (?, ?, ?, ?, ?)",
-			postIDInt, userID, content, parentIDInt, time.Now(),
+			request.PostID, userID, request.Content, *request.ParentID, time.Now(),
 		)
-		if err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to insert comment", http.StatusInternalServerError)
-			return
-		}
 	} else {
-		// This is a top-level comment
+		// Insert top-level comment
 		_, err = tx.Exec(
 			"INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
-			postIDInt, userID, content, time.Now(),
+			request.PostID, userID, request.Content, time.Now(),
 		)
-		if err != nil {
-			tx.Rollback()
-			http.Error(w, "Failed to insert comment", http.StatusInternalServerError)
-			return
-		}
 	}
 
-	// Commit the transaction
-	if err = tx.Commit(); err != nil {
-		http.Error(w, "Error committing transaction", http.StatusInternalServerError)
+	if err != nil {
+		log.Println("Insert comment error:", err)
+		http.Error(w, `{"error":"Failed to save comment"}`, http.StatusInternalServerError)
 		return
 	}
 
-	// Redirect back to the post
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		log.Println("Commit error:", err)
+		http.Error(w, `{"error":"Database error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Comment posted successfully",
+	})
 }
 
+// GetCommentsHandler handles GET requests for fetching comments
+func GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers
+	w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		w.Header().Set("Access-Control-Allow-Methods", "GET")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+        w.WriteHeader(http.StatusMethodNotAllowed)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Method not allowed"})
+        return
+    }
+
+
+	// Get post_id from query params
+	postIDStr := r.URL.Query().Get("post_id")
+	postID, err := strconv.Atoi(postIDStr)
+	if err != nil || postID <= 0 {
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Invalid post ID"})
+        return
+    }
+
+	comments, err := GetCommentsForPost(postID)
+    if err != nil {
+        log.Printf("Error fetching comments for post %d: %v", postID, err)
+        w.WriteHeader(http.StatusInternalServerError)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Failed to load comments"})
+        return
+    }
+
+
+	 // Return comments
+	 if err := json.NewEncoder(w).Encode(comments); err != nil {
+        log.Printf("Error encoding comments: %v", err)
+        w.WriteHeader(http.StatusInternalServerError)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Failed to format response"})
+    }
+}
+
+// [Keep all your existing GetCommentsForPost, GetCommentReplies, GetUserIdFromSession, and GetPostByID functions exactly as they were]
+func jsonError(w http.ResponseWriter, message string, statusCode int) {
+    w.WriteHeader(statusCode)
+    json.NewEncoder(w).Encode(map[string]string{
+        "error": message,
+    })
+}
 // Fetch comments for a specific post
 var GetCommentsForPost = func(postID int) ([]Comment, error) {
 	// First, get all comments for this post
