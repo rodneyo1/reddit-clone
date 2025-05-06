@@ -195,14 +195,12 @@ function renderPost(post) {
                 </button>
             </div>
             <div id="comment-form-${p.id}" style="display:none;" class="comment-form">
-                <form onsubmit="handleCommentSubmit(${p.id})">
+                <form onsubmit="return handleCommentSubmit('${p.id}', event)">
                     <textarea name="content" required placeholder="Write your comment..."></textarea>
                     <button type="submit">Post Comment</button>
                     <button type="button" onclick="toggleCommentForm('${p.id}')">Cancel</button>
                 </form>
             </div>
-            
-            <!-- Comments section (hidden by default) -->
             <div id="comments-${p.id}" style="display:none;" class="comments-section"></div>
         </div>
     `;
@@ -718,7 +716,7 @@ function toggleCommentForm(postId) {
     if (commentForm.style.display === 'none' || !commentForm.style.display) {
         commentForm.style.display = 'block';
         if (commentsSection) commentsSection.style.display = 'block';
-        loadComments(postId); // Load comments when form is shown
+        loadComments(postId);
     } else {
         commentForm.style.display = 'none';
         if (commentsSection) commentsSection.style.display = 'none';
@@ -737,26 +735,44 @@ function toggleReplyForm(commentId) {
 
 // Load comments for a post
 async function loadComments(postId) {
+    const commentsSection = document.getElementById(`comments-${postId}`);
+    if (!commentsSection) return;
+
     try {
-        const response = await fetch(`/api/comments?post_id=${postId}`);
-        if (!response.ok) throw new Error('Failed to load comments');
-        
-        const comments = await response.json();
-        const commentsSection = document.getElementById(`comments-${postId}`);
-        
-        if (commentsSection) {
-            commentsSection.innerHTML = renderComments(comments);
-            // Attach event listeners to reply buttons
-            document.querySelectorAll(`.reply-button`).forEach(button => {
-                button.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const commentId = button.getAttribute('data-comment-id');
-                    toggleReplyForm(commentId);
-                });
-            });
+        const response = await fetch(`/api/comments?post_id=${postId}`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load comments');
         }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Invalid response format');
+        }
+
+        const comments = await response.json();
+        
+        // Debug log to check the received data
+        console.log('Received comments:', comments);
+        
+        if (!Array.isArray(comments)) {
+            throw new Error('Invalid comments data');
+        }
+
+        commentsSection.innerHTML = comments.length > 0 
+            ? renderComments(comments) 
+            : '<p class="no-comments">No comments yet. Be the first to comment!</p>';
+            
     } catch (error) {
         console.error('Error loading comments:', error);
+        commentsSection.innerHTML = `
+            <div class="error-message">
+                Error loading comments. Please try again.
+                <button onclick="loadComments(${postId})">Retry</button>
+            </div>
+        `;
     }
 }
 
@@ -766,11 +782,26 @@ function renderComments(comments) {
         return '<p class="no-comments">No comments yet. Be the first to comment!</p>';
     }
 
-    return `
-        <div class="comments-container">
-            ${comments.map(comment => renderSingleComment(comment)).join('')}
+    return comments.map(comment => `
+        <div class="comment" data-comment-id="${comment.ID}">
+            <div class="comment-header">
+                <span class="comment-author">${comment.Username || 'Anonymous'}</span>
+                <span class="comment-time">${comment.CreatedAtHuman || formatDate(comment.CreatedAt) || 'Just now'}</span>
+            </div>
+            <div class="comment-content">${comment.Content || ''}</div>
+            ${comment.Replies && comment.Replies.length > 0 ? `
+                <div class="replies">
+                    ${renderComments(comment.Replies)}
+                </div>
+            ` : ''}
         </div>
-    `;
+    `).join('');
+}
+
+// Add this helper function if you don't have it
+function formatDate(dateString) {
+    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return new Date(dateString).toLocaleDateString('en-US', options);
 }
 
 // Render a single comment with its replies
@@ -802,11 +833,11 @@ function renderSingleComment(comment) {
             
             <!-- Reply form (hidden by default) -->
             <div id="reply-form-${comment.id}" style="display:none;" class="reply-form">
-                <form onsubmit="handleCommentSubmit(${comment.post_id}, ${comment.id})">
-                    <textarea name="content" required placeholder="Write your reply..."></textarea>
-                    <button type="submit">Post Reply</button>
-                    <button type="button" onclick="toggleReplyForm(${comment.id})">Cancel</button>
-                </form>
+                <form onsubmit="handleCommentSubmit(event)">
+    <textarea name="content" required placeholder="Write your comment..."></textarea>
+    <button type="submit">Post Comment</button>
+    <button type="button" onclick="toggleCommentForm('${postId}')">Cancel</button>
+</form>
             </div>
             
             <!-- Replies section -->
@@ -820,49 +851,51 @@ function renderSingleComment(comment) {
 }
 
 // Handle comment form submission
-async function handleCommentSubmit(event, postId, parentId = null) {
-    
+// Replace your handleCommentSubmit function with:
+// Handle comment submission
+async function handleCommentSubmit(postId, event) {
     event.preventDefault();
+    
     const form = event.target;
-    const formData = new FormData(form);
-    const content = formData.get('content');
-    console.log(postId);
+    const content = form.content.value.trim();
     
-    if (!content.trim()) {
+    if (!content) {
         alert('Comment cannot be empty');
-        return;
+        return false;
     }
-    console.log(content);
-    
+
     try {
+        // Convert postId to number
+        const numericPostId = Number(postId);
+        if (isNaN(numericPostId)) {
+            throw new Error('Invalid post ID');
+        }
+
         const response = await fetch('/api/comment', {
             method: 'POST',
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                post_id: postId,
-                content: content,
-                parent_id: parentId
+                post_id: numericPostId,
+                content: content
             })
         });
 
-        if (response.ok) {
-            form.reset();
-            if (parentId) {
-                toggleReplyForm(parentId);
-            } else {
-                toggleCommentForm(postId);
-            }
-            loadComments(postId); // Refresh comments
-        } else {
-            const error = await response.json();
-            alert(error.error || 'Failed to post comment');
+        const responseData = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(responseData.error || 'Failed to post comment');
         }
+
+        form.reset();
+        await loadComments(postId);
     } catch (error) {
         console.error('Error submitting comment:', error);
-        alert('Error submitting comment. Please try again.');
+        alert(`Error: ${error.message}`);
     }
+    return false;
 }
 
 // Handle comment like/dislike
