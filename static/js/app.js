@@ -1,3 +1,13 @@
+window.addEventListener('DOMContentLoaded', () => {
+    const initialPath = window.location.hash.replace('#', '') || '/login'; // Force login as default
+    render(initialPath);
+});
+
+// Then keep your existing hashchange listener
+window.addEventListener('hashchange', () => {
+    const path = window.location.hash.replace('#', '');
+    render(path);
+});
 // Routes
 const routes = {
     '/': 'login',
@@ -17,6 +27,11 @@ async function render(path) {
     const app = document.getElementById('app');
     const authButtons = document.getElementById('auth-buttons');
     const isLoggedIn = await checkLoginStatus();
+
+    // if (path !== '/login' && path !== '/register' && !isLoggedIn) {
+    //     window.location.hash = '/login';
+    //     return;
+    // }
 
     try {
         if (path.startsWith('/filter')) {
