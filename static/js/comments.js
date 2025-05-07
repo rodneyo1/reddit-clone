@@ -2,13 +2,15 @@ function toggleCommentForm(postId) {
     const commentForm = document.getElementById(`comment-form-${postId}`);
     const commentsSection = document.getElementById(`comments-${postId}`);
     
+    // Always show "No comments" by default when opening
     if (commentForm.style.display === 'none' || !commentForm.style.display) {
         commentForm.style.display = 'block';
-        if (commentsSection) commentsSection.style.display = 'block';
-        loadComments(postId);
+        commentsSection.innerHTML = '<p class="no-comments">Loading comments...</p>';
+        commentsSection.style.display = 'block';
+        loadComments(postId); // Load after showing the section
     } else {
         commentForm.style.display = 'none';
-        if (commentsSection) commentsSection.style.display = 'none';
+        commentsSection.style.display = 'none';
     }
 }
 
@@ -17,39 +19,34 @@ async function loadComments(postId) {
     if (!commentsSection) return;
 
     try {
-        const response = await fetch(`/api/comments?post_id=${postId}`, {
-            credentials: 'include'
-        });
-
+        const response = await fetch(`/api/comments?post_id=${postId}`);
+        
+        // First check if the response is successful
         if (!response.ok) {
-            throw new Error('Failed to load comments');
+            throw new Error(`Server returned ${response.status}`);
         }
 
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            throw new Error('Invalid response format');
-        }
-
-        const comments = await response.json();
+        // Check if response has data
+        const data = await response.json();
         
-        // Debug log to check the received data
-        console.log('Received comments:', comments);
-        
-        if (!Array.isArray(comments)) {
-            throw new Error('Invalid comments data');
+        // Handle empty comments array
+        if (!data || !Array.isArray(data)) {
+            commentsSection.innerHTML = '<p class="no-comments">No comments yet. Be the first to comment!</p>';
+            return;
         }
 
-        commentsSection.innerHTML = comments.length > 0 
-            ? renderComments(comments) 
+        // If we get here, render the comments
+        commentsSection.innerHTML = data.length > 0 
+            ? renderComments(data) 
             : '<p class="no-comments">No comments yet. Be the first to comment!</p>';
-            
+
     } catch (error) {
-        console.error('Error loading comments:', error);
+        console.error('Comment load error:', error);
         commentsSection.innerHTML = `
-            <div class="error-message">
-                Error loading comments. Please try again.
-                <button onclick="loadComments(${postId})">Retry</button>
-            </div>
+            <p class="no-comments">No comments yet</p>
+            <button class="retry-btn" onclick="loadComments(${postId})">
+                Try Again
+            </button>
         `;
     }
 }
@@ -129,6 +126,6 @@ function toggleReplyForm(commentId) {
     }
 }
 
-window.handleCommentLike = handleCommentLike;
+// window.handleCommentLike = handleCommentLike;
 window.toggleCommentForm = toggleCommentForm;
 window.handleCommentSubmit = handleCommentSubmit;
