@@ -119,3 +119,16 @@ function renderComments(comments) {
         </div>
     `).join('');
 }
+
+function toggleReplyForm(commentId) {
+    const replyForm = document.getElementById(`reply-form-${commentId}`);
+    if (replyForm.style.display === 'none' || !replyForm.style.display) {
+        replyForm.style.display = 'block';
+    } else {
+        replyForm.style.display = 'none';
+    }
+}
+
+window.handleCommentLike = handleCommentLike;
+window.toggleCommentForm = toggleCommentForm;
+window.handleCommentSubmit = handleCommentSubmit;

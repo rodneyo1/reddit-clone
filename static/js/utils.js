@@ -1,5 +1,5 @@
 // Shared constants and utilities
-export const validCategories = [
+const validCategories = [
     "technology",
     "general",
     "lifestyle",
@@ -42,11 +42,15 @@ function formatDate(dateString) {
     });
 }
 
-function validateCategories() {
+window.validateCategories = function() {
     const checkboxes = document.querySelectorAll('input[name="category"]:checked');
     if (checkboxes.length === 0) {
         alert("Please select at least one category.");
         return false;
     }
     return true;
-}
+};
+
+window.validateCategories = validateCategories;
+window.formatDate = formatDate;
+window.normalizePost = normalizePost;

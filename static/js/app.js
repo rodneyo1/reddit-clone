@@ -55,8 +55,9 @@ async function render(path) {
                     return
                     break;
                 case '/home':
+                    case '/filter':
                     app.innerHTML = await fetchHomeContent();
-                    document.getElementById('post-form')?.addEventListener('submit', handlePostSubmit);
+                    document.getElementById('post-form')?.addEventListener('submit', window.handlePostSubmit);
                     break;
                 default:
                     app.innerHTML = '<h1>404 Not Found</h1>';

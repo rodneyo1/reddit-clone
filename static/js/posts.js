@@ -163,8 +163,13 @@ async function fetchFilteredContent(category) {
 
 async function handlePostSubmit(event) {
     event.preventDefault();
+
+    if (!window.validateCategories || typeof window.validateCategories !== 'function') {
+        console.error("validateCategories is not available!");
+        return;
+    }
     
-    if (!validateCategories()) {
+    if (!window.validateCategories()) {
         return;
     }
 
@@ -221,3 +226,74 @@ function toggleCreatePost() {
     if (postsList) postsList.style.display = shouldShowForm ? 'none' : 'block';
     if (postsHeading) postsHeading.style.display = shouldShowForm ? 'none' : 'block';
 }
+
+function updateLikeUI(postId, likeCount, dislikeCount, isLike) {
+    const likeBtn = document.querySelector(`.like-button[data-post-id="${postId}"]`);
+    const dislikeBtn = document.querySelector(`.dislike-button[data-post-id="${postId}"]`);
+    
+    // Update counts
+    if (likeBtn) likeBtn.querySelector('.like-count').textContent = likeCount;
+    if (dislikeBtn) dislikeBtn.querySelector('.dislike-count').textContent = dislikeCount;
+    
+    // Update active states
+    if (isLike !== undefined) {
+        if (isLike) {
+            likeBtn?.classList.add('active');
+            dislikeBtn?.classList.remove('active');
+        } else {
+            dislikeBtn?.classList.add('active');
+            likeBtn?.classList.remove('active');
+        }
+    }
+}
+
+function normalizeLikePost(post) {
+    return {
+        ...post,
+        likeCount: post.likeCount || post.LikeCount || 0,
+        dislikeCount: post.dislikeCount || post.DislikeCount || 0,
+        userLiked: post.userLiked || false,
+        userDisliked: post.userDisliked || false
+    };
+}
+
+let likeProcessing = false;
+async function handleLikeAction(postId, isLike) {
+    if (likeProcessing) return;
+    likeProcessing = true;
+    
+    try {
+        const response = await fetch('/api/like', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `post_id=${postId}&is_like=${isLike}`
+        });
+
+        if (response.status === 401) {
+            window.location.hash = '#/login';
+            return;
+        }
+
+        const data = await response.json();
+        
+        if (data.success) {
+            updateLikeUI(postId, data.like_count, data.dislike_count, isLike);
+        } else {
+            alert(data.error || 'Failed to process like/dislike');
+        }
+    } catch (error) {
+        console.error('Like action failed:', error);
+        alert('An error occurred. Please try again.');
+    } finally {
+        likeProcessing = false;
+    }
+}
+
+window.renderPost = renderPost;
+window.fetchHomeContent = fetchHomeContent;
+window.handleLikeAction = handleLikeAction;
+window.handlePostSubmit = handlePostSubmit;
+window.toggleCreatePost = toggleCreatePost;
+// window.validateCategories = validateCategories;
