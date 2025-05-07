@@ -36,6 +36,7 @@ func main() {
 	http.HandleFunc("/api/filter", handlers.FilterHandler)
 	http.HandleFunc("/api/like", handlers.LikeHandler)
 	http.HandleFunc("/api/comment", handlers.CommentHandler)
+	http.HandleFunc("/api/comments", handlers.GetCommentsHandler) 
 	
 
 	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)

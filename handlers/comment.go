@@ -14,9 +14,9 @@ var PostID int
 // CommentHandler handles POST requests for creating new comments
 func CommentHandler(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
-	w.Header().Set("Content-Type", "application/json")
+	// w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	// w.Header().Set("Access-Control-Allow-Credentials", "true")
+	// w.Header().Set("Content-Type", "application/json")
 
 	// Handle preflight OPTIONS request
 	if r.Method == "OPTIONS" {
