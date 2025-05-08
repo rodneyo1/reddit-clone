@@ -42,6 +42,16 @@ func main() {
 	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)
 
 
+// // Chat API endpoints
+// http.HandleFunc("/api/chats", handlers.GetChatsHandler)
+// http.HandleFunc("/api/chats/create", handlers.CreateChatHandler)
+// http.HandleFunc("/api/chats/messages", handlers.GetChatMessagesHandler)
+// http.HandleFunc("/api/chats/members", handlers.GetChatMembersHandler)
+// http.HandleFunc("/api/users/status", handlers.GetUserStatusHandler)
+
+// // WebSocket endpoint for real-time chat
+// http.HandleFunc("/ws/chat", handlers.ChatWebSocketHandler)
+
 	// Initialize the database and OAuth providers
 	handlers.InitDB()
 	handlers.InitGoogleOAuth()
