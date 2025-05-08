@@ -103,6 +103,40 @@ func InitDB() {
         FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
         UNIQUE(user_id, comment_id)
     );
+
+    -- Chat rooms table
+CREATE TABLE IF NOT EXISTS chat_rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_by TEXT NOT NULL,
+    is_private BOOLEAN DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+-- Chat participants table
+CREATE TABLE IF NOT EXISTS chat_participants (
+    room_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_admin BOOLEAN DEFAULT 0,
+    PRIMARY KEY (room_id, user_id),
+    FOREIGN KEY (room_id) REFERENCES chat_rooms(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Chat messages table
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES chat_rooms(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
     `
 	_, err = db.Exec(createTable)
 	if err != nil {
