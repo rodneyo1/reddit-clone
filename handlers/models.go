@@ -55,3 +55,52 @@ type Session struct {
 	SessionID string
 	UserID    string
 }
+
+// ChatRoom represents a chat room in the system
+type ChatRoom struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedBy   string    `json:"created_by"`
+	IsPrivate   bool      `json:"is_private"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CreatorName string    `json:"creator_name,omitempty"` // For display purposes
+	Participants int      `json:"participants,omitempty"` // Count of participants
+}
+
+// ChatParticipant represents a user's participation in a chat room
+type ChatParticipant struct {
+	ID       int       `json:"id"`
+	RoomID   int       `json:"room_id"`
+	UserID   string    `json:"user_id"`
+	JoinedAt time.Time `json:"joined_at"`
+	IsAdmin  bool      `json:"is_admin"`
+	Username string    `json:"username,omitempty"` // For display purposes
+}
+
+// ChatMessage represents a message in a chat room
+type ChatMessage struct {
+	ID        int       `json:"id"`
+	RoomID    int       `json:"room_id"`
+	UserID    string    `json:"user_id"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+	Username  string    `json:"username,omitempty"`  // For display purposes
+	AvatarURL string    `json:"avatar_url,omitempty"` // For display purposes
+	IsRead    bool      `json:"is_read,omitempty"`   // If current user has read this
+}
+
+// MessageReceipt represents a read receipt for a message
+type MessageReceipt struct {
+	ID        int       `json:"id"`
+	MessageID int       `json:"message_id"`
+	UserID    string    `json:"user_id"`
+	ReadAt    time.Time `json:"read_at"`
+}
+
+// UnreadCount represents the count of unread messages
+type UnreadCount struct {
+	RoomID int `json:"room_id"`
+	Count  int `json:"count"`
+}
