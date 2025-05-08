@@ -112,29 +112,42 @@ CREATE TABLE IF NOT EXISTS chat_rooms (
     created_by TEXT NOT NULL,
     is_private BOOLEAN DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Chat participants table
+-- Chat room participants
 CREATE TABLE IF NOT EXISTS chat_participants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     room_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_admin BOOLEAN DEFAULT 0,
-    PRIMARY KEY (room_id, user_id),
-    FOREIGN KEY (room_id) REFERENCES chat_rooms(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(room_id, user_id)
 );
 
--- Chat messages table
+-- Chat messages
 CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     room_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
     message TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (room_id) REFERENCES chat_rooms(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Read receipts for messages
+CREATE TABLE IF NOT EXISTS message_receipts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (message_id) REFERENCES chat_messages(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(message_id, user_id)
 );
 
     `
