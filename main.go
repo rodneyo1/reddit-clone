@@ -27,30 +27,33 @@ func main() {
 
 	// Serve API data for frontend fetch requests
 	http.HandleFunc("/api/home", handlers.HomeHandler)
-	http.HandleFunc("/api/register", handlers.RegisterHandler)
 	http.HandleFunc("/api/profile", handlers.ProfileHandler)
-	http.HandleFunc("/api/login", handlers.LoginHandler)
-	http.HandleFunc("/api/check-login", handlers.CheckLoginHandler)
 	http.HandleFunc("/api/posts", handlers.PostHandler)
-	http.HandleFunc("/api/logout", handlers.LogoutHandler)
 	http.HandleFunc("/api/filter", handlers.FilterHandler)
 	http.HandleFunc("/api/like", handlers.LikeHandler)
 	http.HandleFunc("/api/comment", handlers.CommentHandler)
-	http.HandleFunc("/api/comments", handlers.GetCommentsHandler) 
-	
-
+	http.HandleFunc("/api/comments", handlers.GetCommentsHandler)
 	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)
 
+	// Auth Endpoints
+	http.HandleFunc("/api/register", handlers.RegisterHandler)
+	http.HandleFunc("/api/login", handlers.LoginHandler)
+	http.HandleFunc("/api/check-login", handlers.CheckLoginHandler)
+	http.HandleFunc("/api/logout", handlers.LogoutHandler)
+	http.HandleFunc("/auth/google/login", handlers.HandleGoogleLogin)
+	http.HandleFunc("/auth/github/login", handlers.HandleGithubLogin)
+	http.HandleFunc("/auth/google/callback", handlers.HandleGoogleCallback)
+	http.HandleFunc("/auth/github/callback", handlers.HandleGithubCallback)
 
-// // Chat API endpoints
-// http.HandleFunc("/api/chats", handlers.GetChatsHandler)
-// http.HandleFunc("/api/chats/create", handlers.CreateChatHandler)
-// http.HandleFunc("/api/chats/messages", handlers.GetChatMessagesHandler)
-// http.HandleFunc("/api/chats/members", handlers.GetChatMembersHandler)
-// http.HandleFunc("/api/users/status", handlers.GetUserStatusHandler)
+	// Chat API endpoints
+	http.HandleFunc("/api/chats", handlers.GetChatsHandler)
+	http.HandleFunc("/api/chats/create", handlers.CreateChatHandler)
+	http.HandleFunc("/api/chats/messages", handlers.GetChatMessagesHandler)
+	http.HandleFunc("/api/chats/members", handlers.GetChatMembersHandler)
+	http.HandleFunc("/api/users/status", handlers.GetUserStatusHandler)
 
-// // WebSocket endpoint for real-time chat
-// http.HandleFunc("/ws/chat", handlers.ChatWebSocketHandler)
+	// // WebSocket endpoint for real-time chat
+	http.HandleFunc("/ws/chat", handlers.ChatWebSocketHandler)
 
 	// Initialize the database and OAuth providers
 	handlers.InitDB()
