@@ -104,52 +104,41 @@ func InitDB() {
         UNIQUE(user_id, comment_id)
     );
 
--- User status for online/offline indicators
-CREATE TABLE IF NOT EXISTS user_status (
+CREATE TABLE IF NOT EXISTS chat_rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    is_group BOOLEAN NOT NULL DEFAULT 0,  -- 0 for DM, 1 for group chat
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS chat_room_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_room_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_admin BOOLEAN DEFAULT 0, -- For group chats, admin privileges
+    last_read_message_id INTEGER DEFAULT 0,
+    FOREIGN KEY(chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    UNIQUE(chat_room_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_room_id INTEGER NOT NULL,
+    sender_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY(sender_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_statuses (
     user_id TEXT PRIMARY KEY,
     status TEXT NOT NULL DEFAULT 'offline', -- 'online', 'offline', 'away'
     last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Chat rooms (group chats and DMs)
-CREATE TABLE IF NOT EXISTS chats (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT, -- NULL for DMs between two users
-    is_direct_message BOOLEAN NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Chat participants
-CREATE TABLE IF NOT EXISTS chat_members (
-    chat_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL,
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (chat_id, user_id),
-    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Chat messages
-CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_id INTEGER NOT NULL,
-    sender_id TEXT NOT NULL,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
-    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Message read status
-CREATE TABLE IF NOT EXISTS message_status (
-    message_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT 0,
-    read_at TIMESTAMP,
-    PRIMARY KEY (message_id, user_id),
-    FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
     `
