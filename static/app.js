@@ -93,6 +93,14 @@ async function render(path) {
                     window.location.reload();
                     return
                     break;
+                case '/messages':
+                        if (!isLoggedIn) {
+                            window.location.hash = '/login';
+                            return;
+                        }
+                        app.innerHTML = await fetchMessagesContent();
+                        initChat(); // Initialize chat functionality
+                        break;
                 case '/home':
                     app.innerHTML = await fetchHomeContent();
                     document.getElementById('post-form')?.addEventListener('submit', handlePostSubmit);
