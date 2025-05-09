@@ -55,3 +55,20 @@ type Session struct {
 	SessionID string
 	UserID    string
 }
+
+type PrivateMessage struct {
+    ID        int       `json:"id"`
+    SenderID  int       `json:"sender_id"`
+    ReceiverID int      `json:"receiver_id"`
+    Content   string    `json:"content"`
+    CreatedAt time.Time `json:"created_at"`
+    IsRead    bool      `json:"is_read"`
+    Sender    User      `json:"sender"`
+}
+
+type UserStatus struct {
+    UserID    int       `json:"user_id"`
+    IsOnline  bool      `json:"is_online"`
+    LastSeen  time.Time `json:"last_seen"`
+    User      User      `json:"user"`
+}

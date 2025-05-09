@@ -103,6 +103,24 @@ func InitDB() {
         FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
         UNIQUE(user_id, comment_id)
     );
+
+    CREATE TABLE IF NOT EXISTS private_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id INTEGER NOT NULL,
+    receiver_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_read BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (receiver_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_status (
+    user_id INTEGER PRIMARY KEY,
+    is_online BOOLEAN DEFAULT FALSE,
+    last_seen DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
     `
 	_, err = db.Exec(createTable)
 	if err != nil {
