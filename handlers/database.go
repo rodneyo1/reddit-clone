@@ -109,6 +109,44 @@ func InitDB() {
         FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
         UNIQUE(user_id, comment_id)
     );
+
+CREATE TABLE IF NOT EXISTS chat_rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    is_group BOOLEAN NOT NULL DEFAULT 0,  -- 0 for DM, 1 for group chat
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS chat_room_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_room_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_admin BOOLEAN DEFAULT 0, -- For group chats, admin privileges
+    last_read_message_id INTEGER DEFAULT 0,
+    FOREIGN KEY(chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    UNIQUE(chat_room_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_room_id INTEGER NOT NULL,
+    sender_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    FOREIGN KEY(sender_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS user_statuses (
+    user_id TEXT PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'offline', -- 'online', 'offline', 'away'
+    last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
     `
 	_, err = db.Exec(createTable)
 	if err != nil {

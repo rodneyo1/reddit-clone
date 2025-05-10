@@ -6,7 +6,10 @@ const routes = {
     '/profile': 'profile',
     '/home': 'home',
     '/logout': 'logout',
-    '/filter': 'filter'
+    '/filter': 'filter',
+    '/api/comments': 'comments',
+    '/api/comment': 'comment',
+    '/api/comment/like': 'commentLike'
 };
 
 const validCategories = [
@@ -87,6 +90,8 @@ async function render(path) {
                 case '/logout':
                     await handleLogout();
                     window.location.hash = '/login';
+                    window.location.reload();
+                    return
                     break;
                 case '/home':
                     app.innerHTML = await fetchHomeContent();
@@ -189,6 +194,14 @@ function renderPost(post) {
                     <i class="fas fa-comment"></i> Comments
                 </button>
             </div>
+            <div id="comment-form-${p.id}" style="display:none;" class="comment-form">
+                <form onsubmit="return handleCommentSubmit('${p.id}', event)">
+                    <textarea name="content" required placeholder="Write your comment..."></textarea>
+                    <button type="submit">Post Comment</button>
+                    <button type="button" onclick="toggleCommentForm('${p.id}')">Cancel</button>
+                </form>
+            </div>
+            <div id="comments-${p.id}" style="display:none;" class="comments-section"></div>
         </div>
     `;
 }
@@ -695,6 +708,248 @@ async function checkLoginStatus() {
     }
 }
 
+// Toggle comment form visibility
+function toggleCommentForm(postId) {
+    const commentForm = document.getElementById(`comment-form-${postId}`);
+    const commentsSection = document.getElementById(`comments-${postId}`);
+    
+    if (commentForm.style.display === 'none' || !commentForm.style.display) {
+        commentForm.style.display = 'block';
+        if (commentsSection) commentsSection.style.display = 'block';
+        loadComments(postId);
+    } else {
+        commentForm.style.display = 'none';
+        if (commentsSection) commentsSection.style.display = 'none';
+    }
+}
+
+// Toggle reply form visibility
+function toggleReplyForm(commentId) {
+    const replyForm = document.getElementById(`reply-form-${commentId}`);
+    if (replyForm.style.display === 'none' || !replyForm.style.display) {
+        replyForm.style.display = 'block';
+    } else {
+        replyForm.style.display = 'none';
+    }
+}
+
+// Load comments for a post
+async function loadComments(postId) {
+    const commentsSection = document.getElementById(`comments-${postId}`);
+    if (!commentsSection) return;
+
+    try {
+        const response = await fetch(`/api/comments?post_id=${postId}`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load comments');
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Invalid response format');
+        }
+
+        const comments = await response.json();
+        
+        // Debug log to check the received data
+        console.log('Received comments:', comments);
+        
+        if (!Array.isArray(comments)) {
+            throw new Error('Invalid comments data');
+        }
+
+        commentsSection.innerHTML = comments.length > 0 
+            ? renderComments(comments) 
+            : '<p class="no-comments">No comments yet. Be the first to comment!</p>';
+            
+    } catch (error) {
+        console.error('Error loading comments:', error);
+        commentsSection.innerHTML = `
+            <div class="error-message">
+                Error loading comments. Please try again.
+                <button onclick="loadComments(${postId})">Retry</button>
+            </div>
+        `;
+    }
+}
+
+// Render comments HTML
+function renderComments(comments) {
+    if (!comments || comments.length === 0) {
+        return '<p class="no-comments">No comments yet. Be the first to comment!</p>';
+    }
+
+    return comments.map(comment => `
+        <div class="comment" data-comment-id="${comment.ID}">
+            <div class="comment-header">
+                <span class="comment-author">${comment.Username || 'Anonymous'}</span>
+                <span class="comment-time">${comment.CreatedAtHuman || formatDate(comment.CreatedAt) || 'Just now'}</span>
+            </div>
+            <div class="comment-content">${comment.Content || ''}</div>
+            ${comment.Replies && comment.Replies.length > 0 ? `
+                <div class="replies">
+                    ${renderComments(comment.Replies)}
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+// Add this helper function if you don't have it
+function formatDate(dateString) {
+    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return new Date(dateString).toLocaleDateString('en-US', options);
+}
+
+// Render a single comment with its replies
+function renderSingleComment(comment) {
+    return `
+        <div class="comment" data-comment-id="${comment.id}">
+            <div class="comment-header">
+                <span class="comment-author">${comment.username}</span>
+                <span class="comment-time">${comment.createdAtHuman}</span>
+            </div>
+            <div class="comment-content">${comment.content}</div>
+            <div class="comment-actions">
+                <button class="like-button ${comment.userLiked ? 'active' : ''}" 
+                        data-comment-id="${comment.id}" 
+                        onclick="handleCommentLike('${comment.id}', true)">
+                    <i class="fas fa-thumbs-up"></i> 
+                    <span class="like-count">${comment.likeCount || 0}</span>
+                </button>
+                <button class="dislike-button ${comment.userDisliked ? 'active' : ''}" 
+                        data-comment-id="${comment.id}" 
+                        onclick="handleCommentLike('${comment.id}', false)">
+                    <i class="fas fa-thumbs-down"></i> 
+                    <span class="dislike-count">${comment.dislikeCount || 0}</span>
+                </button>
+                <button class="reply-button" data-comment-id="${comment.id}">
+                    <i class="fas fa-reply"></i> Reply
+                </button>
+            </div>
+            
+            <!-- Reply form (hidden by default) -->
+            <div id="reply-form-${comment.id}" style="display:none;" class="reply-form">
+                <form onsubmit="handleCommentSubmit(event)">
+    <textarea name="content" required placeholder="Write your comment..."></textarea>
+    <button type="submit">Post Comment</button>
+    <button type="button" onclick="toggleCommentForm('${postId}')">Cancel</button>
+</form>
+            </div>
+            
+            <!-- Replies section -->
+            ${comment.replies && comment.replies.length > 0 ? `
+                <div class="replies">
+                    ${comment.replies.map(reply => renderSingleComment(reply)).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// Handle comment form submission
+// Replace your handleCommentSubmit function with:
+// Handle comment submission
+async function handleCommentSubmit(postId, event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const content = form.content.value.trim();
+    
+    if (!content) {
+        alert('Comment cannot be empty');
+        return false;
+    }
+
+    try {
+        // Convert postId to number
+        const numericPostId = Number(postId);
+        if (isNaN(numericPostId)) {
+            throw new Error('Invalid post ID');
+        }
+
+        const response = await fetch('/api/comment', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                post_id: numericPostId,
+                content: content
+            })
+        });
+
+        const responseData = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(responseData.error || 'Failed to post comment');
+        }
+
+        form.reset();
+        await loadComments(postId);
+    } catch (error) {
+        console.error('Error submitting comment:', error);
+        alert(`Error: ${error.message}`);
+    }
+    return false;
+}
+
+// Handle comment like/dislike
+async function handleCommentLike(commentId, isLike) {
+    try {
+        const response = await fetch('/api/comment/like', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                comment_id: commentId,
+                is_like: isLike
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Find the comment element
+                const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
+                if (commentElement) {
+                    // Update like/dislike counts
+                    const likeCountElement = commentElement.querySelector('.like-count');
+                    const dislikeCountElement = commentElement.querySelector('.dislike-count');
+                    
+                    if (likeCountElement) likeCountElement.textContent = data.likeCount;
+                    if (dislikeCountElement) dislikeCountElement.textContent = data.dislikeCount;
+                    
+                    // Update button states
+                    const likeButton = commentElement.querySelector('.like-button');
+                    const dislikeButton = commentElement.querySelector('.dislike-button');
+                    
+                    if (data.userLiked) {
+                        likeButton.classList.add('active');
+                        dislikeButton.classList.remove('active');
+                    } else if (data.userDisliked) {
+                        dislikeButton.classList.add('active');
+                        likeButton.classList.remove('active');
+                    } else {
+                        likeButton.classList.remove('active');
+                        dislikeButton.classList.remove('active');
+                    }
+                }
+            }
+        } else {
+            const error = await response.json();
+            alert(error.error || 'Failed to process like/dislike');
+        }
+    } catch (error) {
+        console.error('Error liking comment:', error);
+        alert('Error processing your request. Please try again.');
+    }
+}
 // Handle hash change
 window.addEventListener('hashchange', () => {
     const path = window.location.hash.replace('#', '');
@@ -707,5 +962,8 @@ render(initialPath);
 
 // Make functions available globally
 window.toggleCreatePost = toggleCreatePost;
-window.handleLikeAction = handleLikeAction; // Make sure this function exists
-window.toggleCommentForm = toggleCommentForm; // Make sure this function exists
+window.handleLikeAction = handleLikeAction;
+window.toggleCommentForm = toggleCommentForm;
+window.toggleReplyForm = toggleReplyForm;
+window.handleCommentSubmit = handleCommentSubmit;
+window.handleCommentLike = handleCommentLike;
