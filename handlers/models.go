@@ -4,10 +4,18 @@ import "time"
 
 // User represents a user in the system
 type User struct {
-	ID       string
-	Email    string
-	Username string
-	Password string
+    ID        string
+    Email     string
+    Username  string
+    Password  string
+    GoogleID  string    `json:"google_id,omitempty"`
+    GithubID  string    `json:"github_id,omitempty"`
+    AvatarURL string    `json:"avatar_url,omitempty"`
+    Nickname  string    `json:"nickname,omitempty"`
+    Age       int       `json:"age,omitempty"`
+    Gender    string    `json:"gender,omitempty"`
+    FirstName string    `json:"first_name,omitempty"`
+    LastName  string    `json:"last_name,omitempty"`
 }
 
 // Post represents a post in the forum
