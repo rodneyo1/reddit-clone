@@ -12,7 +12,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
     // Query to fetch all posts along with user info, categories, like counts, and comments
     rows, err := db.Query(`
-        SELECT p.id, p.title, p.content, p.image_path, GROUP_CONCAT(pc.category) as categories, 
+        SELECT p.id, p.title, p.content, p.image_path, GROUP_CONCAT(DISTINCT pc.category) as categories, 
         u.username, p.created_at, 
         COALESCE(l.like_count, 0) AS like_count,
         COALESCE(l.dislike_count, 0) AS dislike_count
