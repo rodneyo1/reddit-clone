@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+
 	"forum/handlers"
 )
 
@@ -79,12 +79,12 @@ func isAPIRoute(path string) bool {
 		"/uploads/",
 		"/src/",
 	}
-	
+
 	for _, prefix := range apiPrefixes {
 		if len(path) >= len(prefix) && path[:len(prefix)] == prefix {
 			return true
 		}
 	}
-	
+
 	return false
 }
