@@ -12,12 +12,13 @@ var db *sql.DB
 func InitDB() {
     var err error
     db, err = sql.Open("sqlite3", "./forum.db")
+    _, err = db.Exec("PRAGMA foreign_keys = ON;")
     if err != nil {
         log.Fatal(err)
     }
 
     // Enable foreign key support
-    _, err = db.Exec("PRAGMA foreign_keys = ON")
+    _, err = db.Exec("PRAGMA foreign_keys = WAL")
     if err != nil {
         log.Fatal("Could not enable foreign key support:", err)
     }
