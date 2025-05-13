@@ -64,6 +64,8 @@ type PrivateMessage struct {
     CreatedAt  time.Time `json:"created_at"`
     IsRead     bool      `json:"is_read"`
     Sender     User      `json:"sender"`
+	SenderUsername string `json:"sender_username"`
+    SenderAvatar   string `json:"sender_avatar,omitempty"`
 }
 
 type UserStatus struct {
