@@ -37,6 +37,9 @@ func main() {
 	http.HandleFunc("/api/like", handlers.LikeHandler)
 	http.HandleFunc("/api/comment", handlers.CommentHandler)
 	http.HandleFunc("/api/comments", handlers.GetCommentsHandler) 
+	http.HandleFunc("/ws/chat", handlers.ChatWebsocketHandler)
+http.HandleFunc("/api/chat/users", handlers.ChatUsersHandler)
+// http.HandleFunc("/api/chat/messages", handlers.ChatMessagesHandler)
 	
 
 	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)
@@ -46,6 +49,8 @@ func main() {
 	handlers.InitDB()
 	handlers.InitGoogleOAuth()
 	handlers.InitGithubOAuth()
+
+	go handlers.StartChatManager()
 
 	// Start the server
 	log.Println("Server is running on http://localhost:8081")

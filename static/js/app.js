@@ -3,7 +3,6 @@ window.addEventListener('DOMContentLoaded', () => {
     render(initialPath);
 });
 
-// Then keep your existing hashchange listener
 window.addEventListener('hashchange', () => {
     const path = window.location.hash.replace('#', '');
     render(path);
@@ -23,9 +22,15 @@ const routes = {
 };
 
 async function render(path) {
+    // console.log(`Rendering path: ${path}`);
     const app = document.getElementById('app');
     const authButtons = document.getElementById('auth-buttons');
     const isLoggedIn = await checkLoginStatus();
+
+    // if (path !== '/login' && path !== '/register' && !isLoggedIn) {
+    //     window.location.hash = '/login';
+    //     return;
+    // }
 
     try {
         if (path.startsWith('/filter')) {
@@ -57,31 +62,19 @@ async function render(path) {
                 case '/profile':
                     app.innerHTML = await fetchProfileContent();
                     break;
-                case '/messages':
-                    if (!isLoggedIn) {
-                        window.location.hash = '/login';
-                        return;
-                    }
-                    app.innerHTML = await fetchMessagesContent();
-                    initChat();
-                    break;
                 case '/logout':
                     await handleLogout();
                     window.location.hash = '/login';
                     window.location.reload();
-                    return;
+                    return
+                    break;
                 case '/home':
-                case '/filter':
-                default:
-                    // Main content view (homepage or filtered posts)
+                    case '/filter':
                     app.innerHTML = await fetchHomeContent();
                     document.getElementById('post-form')?.addEventListener('submit', window.handlePostSubmit);
-                    
-                    // Initialize chat sidebar if logged in (persistent chat)
-                    if (isLoggedIn) {
-                        initChat();
-                    }
                     break;
+                default:
+                    app.innerHTML = '<h1>404 Not Found</h1>';
             }
         }
     } catch (error) {
@@ -89,21 +82,21 @@ async function render(path) {
         app.innerHTML = '<p class="error-message">Error loading content. Please try again.</p>';
     }
 
-    // Update navigation elements
-    const logo = document.getElementById('logo');
-    if (logo) {
-        logo.innerHTML = `<a href="${isLoggedIn ? '#/home' : '#/'}" class="logo-link">Forum</a>`;
-    }
 
-    // Update auth buttons - now includes messages link
+    
+    // const isLoggedIn = await checkLoginStatus();
+    
+    const logo = document.getElementById('logo');
+    // Update logo link
+if (logo) {
+    logo.innerHTML = `<a href="${isLoggedIn ? '#/home' : '#/'}" class="logo-link">Forum</a>`;
+}
+
     authButtons.innerHTML = isLoggedIn
         ? `
             <div class="profile-icon" style="position: relative;">
                 <a href="#/profile" class="material-icons" style="font-size:30px; color: #4A7C8C; margin-top: 10px; vertical-align: middle;">person</a>
             </div>
-            <a href="#/messages" class="auth-button messages" title="Messages">
-                <i class="fas fa-envelope" style="font-size: 24px; color: #4A7C8C; margin-top: 10px;"></i>
-            </a>
             <button class="auth-button create-post" id="create-post-btn">Create Post</button>
             <a href="#/home" class="auth-button home">Home</a>
             <a href="#/logout" class="logout-icon" title="Logout">
@@ -117,6 +110,7 @@ async function render(path) {
 
     // Attach create post button event listener
     if (isLoggedIn) {
+         setTimeout(initChat, 100);
         document.getElementById('create-post-btn')?.addEventListener('click', function(e) {
             e.preventDefault();
             toggleCreatePost();

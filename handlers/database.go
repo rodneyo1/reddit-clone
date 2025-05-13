@@ -10,22 +10,29 @@ import (
 var db *sql.DB
 
 func InitDB() {
-	var err error
-	db, err = sql.Open("sqlite3", "./forum.db")
-	if err != nil {
-		log.Fatal(err)
-	}
+    var err error
+    db, err = sql.Open("sqlite3", "./forum.db")
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	// Create tables
-	createTable := `
+    // Enable foreign key support
+    _, err = db.Exec("PRAGMA foreign_keys = ON")
+    if err != nil {
+        log.Fatal("Could not enable foreign key support:", err)
+    }
+
+    // Create tables
+    createTable := `
     CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,  -- UUID as TEXT
-        email TEXT UNIQUE,
-        username TEXT,
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        username TEXT NOT NULL,
         password TEXT,
-        google_id TEXT,      -- Google's unique user ID
-        github_id TEXT,      -- GitHub's unique user ID
-        avatar_url TEXT      -- Profile picture URL
+        google_id TEXT UNIQUE,
+        github_id TEXT UNIQUE,
+        avatar_url TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS google_auth (
@@ -52,45 +59,50 @@ func InitDB() {
 
     CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT,  -- Changed from INTEGER to TEXT for UUID
-        title TEXT,
-        content TEXT,
-        image_path TEXT, -- New column for image path
-        created_at DATETIME DEFAULT (DATETIME('now', 'localtime')), -- Store in local time (EAT)
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        image_path TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS post_categories (
-        post_id INTEGER,
-        category TEXT,
-        FOREIGN KEY(post_id) REFERENCES posts(id)
+        post_id INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+        PRIMARY KEY (post_id, category)
     );
 
     CREATE TABLE IF NOT EXISTS comments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        parent_id INTEGER DEFAULT NULL REFERENCES comments(id) ON DELETE CASCADE,
-        post_id INTEGER,
-        user_id INTEGER, 
-        content TEXT,
+        parent_id INTEGER DEFAULT NULL,
+        post_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        content TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(post_id) REFERENCES posts(id),
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY(parent_id) REFERENCES comments(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER,
-        user_id TEXT,
-        is_like BOOLEAN, -- 1 for like, 0 for dislike
-        FOREIGN KEY(post_id) REFERENCES posts(id),
-        FOREIGN KEY(user_id) REFERENCES users(id),
-        UNIQUE(post_id, user_id) -- Ensure a user can only like/dislike a post once
+        post_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        is_like BOOLEAN NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(post_id, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
         session_id TEXT PRIMARY KEY NOT NULL,
-        user_id TEXT ,
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        user_id TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS comment_likes (
@@ -111,30 +123,24 @@ func InitDB() {
         content TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         is_read BOOLEAN DEFAULT FALSE,
-        FOREIGN KEY (sender_id) REFERENCES users(id),
-        FOREIGN KEY (recipient_id) REFERENCES users(id)
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS user_status (
+        user_id TEXT PRIMARY KEY,
+        is_online BOOLEAN DEFAULT FALSE,
+        last_seen DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-
-CREATE TABLE IF NOT EXISTS sessions (
-    session_id TEXT PRIMARY KEY NOT NULL,
-    user_id TEXT,
-    expires_at DATETIME NOT NULL, 
-    FOREIGN KEY(user_id) REFERENCES users(id)
-);
-CREATE TABLE IF NOT EXISTS user_status (
-    user_id TEXT PRIMARY KEY,
-    is_online BOOLEAN DEFAULT FALSE,
-    last_seen DATETIME,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
-   CREATE INDEX IF NOT EXISTS idx_messages_conversation 
-    ON messages(sender_id, recipient_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_id, recipient_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     `
-	_, err = db.Exec(createTable)
-	if err != nil {
-		log.Fatal(err)
-	}
+
+    _, err = db.Exec(createTable)
+    if err != nil {
+        log.Fatal("Database initialization error:", err)
+    }
 }

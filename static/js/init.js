@@ -3,6 +3,19 @@ window.addEventListener('hashchange', () => {
     render(path);
 });
 
+if (isLoggedIn) {
+    try {
+        await initChat();
+    } catch (error) {
+        console.error('Chat initialization failed:', error);
+        // Optionally show error to user
+        const chatContainer = document.getElementById('chat-sidebar');
+        if (chatContainer) {
+            chatContainer.innerHTML = '<div class="error-message">Chat unavailable</div>';
+        }
+    }
+}
+
 // Attach global functions
 window.toggleCreatePost = toggleCreatePost;
 window.handleLikeAction = handleLikeAction;

@@ -29,19 +29,23 @@
         </section>
         
         <!-- Right side - Persistent chat (initially hidden) -->
-        <aside id="chat-sidebar" class="chat-sidebar" style="display:none">
-            <div class="chat-header">
-                <h3>Messages</h3>
-            </div>
-            <div id="user-list" class="user-list"></div>
-            <div id="chat-container" class="chat-container" style="display:none">
-                <div id="messages-container"></div>
-                <div class="message-input-container">
-                    <input type="text" id="message-input" placeholder="Type a message...">
-                    <button id="send-button">Send</button>
-                </div>
-            </div>
-        </aside>
+        <aside id="chat-sidebar" class="chat-sidebar">
+    <div class="chat-header">
+        <h3>Messages</h3>
+    </div>
+    <div id="user-list" class="user-list"></div>
+    <div id="chat-container" class="chat-container" style="display:none">
+        <div class="chat-header">
+            <span id="chat-recipient"></span>
+            <button class="close-chat" onclick="closeChat()">&times;</button>
+        </div>
+        <div id="messages-list" class="messages-list"></div>
+        <div class="message-input-container">
+            <input type="text" id="message-input" placeholder="Type a message...">
+            <button id="send-button" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</aside>
     </div>
 
     <!-- Script loading order is important -->
@@ -50,7 +54,7 @@
     <script src="/static/js/posts.js"></script>
     <script src="/static/js/comments.js"></script>
     <script src="/static/js/profile.js"></script>
-    <script src="/static/js/messages.js"></script>
+    <script src="/static/js/chat.js"></script>
     <script src="/static/js/app.js"></script>
     <script src="/static/js/init.js"></script>
 </body>
