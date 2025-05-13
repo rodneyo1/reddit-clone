@@ -6,6 +6,7 @@ let hasMoreMessages = true;
 
 // Initialize chat functionality
 function initChat() {
+    console.log('initChat is running');
     connectWebSocket();
     loadChatUsers();
     setupEventListeners();
@@ -17,6 +18,11 @@ function connectWebSocket() {
     const host = window.location.host;
     chatSocket = new WebSocket(`${protocol}//${host}/ws/chat`);
 
+    setInterval(() => {
+        if (chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({ type: 'ping' }));
+        }
+    }, 30000);
     chatSocket.onopen = () => {
         console.log('WebSocket connected');
     };
@@ -39,12 +45,14 @@ function connectWebSocket() {
 // Load chat users list
 async function loadChatUsers() {
     try {
+         console.log('Loading chat users...');
         const response = await fetch('/api/chat/users');
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log('Fetched users:', data);
         
         // Ensure data is an array before mapping
         if (!Array.isArray(data)) {
@@ -163,6 +171,9 @@ function createMessageElement(msg) {
     return `
         <div class="message ${isCurrentUser ? 'sent' : 'received'}">
             <div class="message-header">
+                ${msg.sender_avatar ? 
+                    `<img src="${msg.sender_avatar}" class="message-avatar" alt="${msg.sender_username}">` : 
+                    `<div class="message-avatar-default">${msg.sender_username?.charAt(0)?.toUpperCase() || 'U'}</div>`}
                 <span class="sender">${msg.sender_username}</span>
                 <span class="time">${messageTime}</span>
             </div>
@@ -215,24 +226,31 @@ function sendMessage() {
 }
 
 // Handle WebSocket messages
+// Update handleWebSocketMessage
 function handleWebSocketMessage(data) {
     if (data.type === 'status_update') {
-        // Update user status in the UI
         updateUserStatus(data.user_id, data.is_online);
-    } else {
-        // It's a chat message
-        const message = data;
-        
-        // Add to UI if it's for the current chat
-        if (message.sender_id === currentRecipient || 
-            (message.recipient_id === currentRecipient && message.sender_id === getCurrentUserId())) {
-            const messagesList = document.getElementById('messages-list');
-            messagesList.insertAdjacentHTML('beforeend', createMessageElement(message));
-            messagesList.scrollTop = messagesList.scrollHeight;
-        }
-        
-        // Update last message in user list
-        updateUserLastMessage(message.sender_id, message.content);
+        return;
+    }
+    
+    // Handle message
+    const message = data;
+    const isCurrentUser = message.sender_id === getCurrentUserId();
+    
+    // Only add to UI if relevant
+    if (message.sender_id === currentRecipient || 
+       (message.recipient_id === currentRecipient && isCurrentUser)) {
+        const messagesList = document.getElementById('messages-list');
+        messagesList.insertAdjacentHTML('beforeend', createMessageElement(message));
+        messagesList.scrollTop = messagesList.scrollHeight;
+    }
+    
+    // Update user list
+    updateUserLastMessage(message.sender_id, message.content);
+    
+    // Play sound for new messages not from self
+    if (!isCurrentUser && message.sender_id !== currentRecipient) {
+        new Audio('/static/sounds/notification.mp3').play().catch(() => {});
     }
 }
 
@@ -300,9 +318,31 @@ function throttle(func, limit) {
 
 // Get current user ID from session
 function getCurrentUserId() {
-    // You'll need to implement this based on how you store user ID in your frontend
-    // This is a placeholder - replace with your actual implementation
-    return document.body.dataset.userId || localStorage.getItem('userId');
+    const sessionCookie = document.cookie.split('; ')
+        .find(row => row.startsWith('session_id='))
+        ?.split('=')[1];
+    
+    if (!sessionCookie) return null;
+    
+    // Get from session storage cache
+    if (sessionStorage.getItem('currentUserId')) {
+        return sessionStorage.getItem('currentUserId');
+    }
+    
+    // Fetch from server if not cached
+    fetch('/api/current-user')
+        .then(response => response.json())
+        .then(data => {
+            if (data.userId) {
+                sessionStorage.setItem('currentUserId', data.userId);
+                return data.userId;
+            }
+            return null;
+        })
+        .catch(error => {
+            console.error('Error getting current user:', error);
+            return null;
+        });
 }
 
 // Close chat

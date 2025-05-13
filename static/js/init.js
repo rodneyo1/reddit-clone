@@ -3,18 +3,20 @@ window.addEventListener('hashchange', () => {
     render(path);
 });
 
-if (isLoggedIn) {
-    try {
-        await initChat();
-    } catch (error) {
-        console.error('Chat initialization failed:', error);
-        // Optionally show error to user
-        const chatContainer = document.getElementById('chat-sidebar');
-        if (chatContainer) {
-            chatContainer.innerHTML = '<div class="error-message">Chat unavailable</div>';
+(async () => {
+    if (isLoggedIn) {
+        try {
+            await initChat();
+        } catch (error) {
+            console.error('Chat initialization failed:', error);
+            const chatContainer = document.getElementById('chat-sidebar');
+            if (chatContainer) {
+                chatContainer.innerHTML = '<div class="error-message">Chat unavailable</div>';
+            }
         }
     }
-}
+})();
+
 
 // Attach global functions
 window.toggleCreatePost = toggleCreatePost;
@@ -22,7 +24,7 @@ window.handleLikeAction = handleLikeAction;
 window.toggleCommentForm = toggleCommentForm;
 window.toggleReplyForm = toggleReplyForm;
 window.handleCommentSubmit = handleCommentSubmit;
-window.handleCommentLike = handleCommentLike;
+// window.handleCommentLike = handleCommentLike;
 
 const initialPath = window.location.hash.replace('#', '') || '/';
 render(initialPath);
