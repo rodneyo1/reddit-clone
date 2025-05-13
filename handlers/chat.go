@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+var chatMutex sync.RWMutex
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -43,12 +46,10 @@ type Message struct {
 	IsRead      bool      `json:"is_read"`
 }
 
-
-
 // ChatWebsocketHandler handles WebSocket connections for chat
 func ChatWebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
-	
+
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
@@ -62,7 +63,10 @@ func ChatWebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var userID string
-	err = db.QueryRow("SELECT user_id FROM sessions WHERE session_id = ?", sessionCookie.Value).Scan(&userID)
+	err = db.QueryRow(`
+    SELECT user_id FROM sessions 
+    WHERE session_id = ? AND expires_at > ?`,
+		sessionCookie.Value, time.Now()).Scan(&userID)
 	if err != nil {
 		conn.Close()
 		return
@@ -153,41 +157,45 @@ func ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// Get all users with their status and last message info
 	rows, err := db.Query(`
 		SELECT 
-			u.id, 
-			u.username, 
-			u.avatar_url,
-			us.is_online,
-			us.last_seen,
-			(
-				SELECT m.content 
-				FROM messages m 
-				WHERE (m.sender_id = u.id OR m.recipient_id = u.id) 
-				AND (m.sender_id = ? OR m.recipient_id = ?)
-				ORDER BY m.created_at DESC 
-				LIMIT 1
-			) as last_message_content,
-			(
-				SELECT m.created_at 
-				FROM messages m 
-				WHERE (m.sender_id = u.id OR m.recipient_id = u.id) 
-				AND (m.sender_id = ? OR m.recipient_id = ?)
-				ORDER BY m.created_at DESC 
-				LIMIT 1
-			) as last_message_time,
-			(
-				SELECT COUNT(*) 
-				FROM messages m 
-				WHERE m.sender_id = u.id 
-				AND m.recipient_id = ? 
-				AND m.is_read = FALSE
-			) as unread_count
-		FROM users u
-		LEFT JOIN user_status us ON u.id = us.user_id
-		WHERE u.id != ?`, currentUserID)
+        u.id, 
+        u.username, 
+        u.avatar_url,
+        us.is_online,
+        us.last_seen,
+        (
+            SELECT m.content 
+            FROM messages m 
+            WHERE (m.sender_id = u.id OR m.recipient_id = u.id) 
+            AND (m.sender_id = ? OR m.recipient_id = ?) 
+            ORDER BY m.created_at DESC 
+            LIMIT 1
+        ) as last_message_content,
+        (
+            SELECT m.created_at 
+            FROM messages m 
+            WHERE (m.sender_id = u.id OR m.recipient_id = u.id) 
+            AND (m.sender_id = ? OR m.recipient_id = ?)  
+            ORDER BY m.created_at DESC 
+            LIMIT 1
+        ) as last_message_time,
+        (
+            SELECT COUNT(*) 
+            FROM messages m 
+            WHERE m.sender_id = u.id 
+            AND m.recipient_id = ?  
+        ) as unread_count
+    FROM users u
+    LEFT JOIN user_status us ON u.id = us.user_id
+    WHERE u.id != ?`, // Needs 1 param
+		currentUserID, currentUserID, // For first subquery
+		currentUserID, currentUserID, // For second subquery
+		currentUserID, // For unread_count
+		currentUserID)
 	if err != nil {
-		 w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode([]interface{}{})
-        return
+		log.Printf("Database query error: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]interface{}{})
+		return
 	}
 	defer rows.Close()
 
@@ -237,15 +245,15 @@ func ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
 		users = append(users, user)
 	}
 	if users == nil {
-        users = []UserWithStatus{}
-    }
+		users = []UserWithStatus{}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(users); err != nil {
-        log.Printf("Error encoding users: %v", err)
-        // Fallback to empty array
-        json.NewEncoder(w).Encode([]interface{}{})
-    }
+		log.Printf("Error encoding users: %v", err)
+		// Fallback to empty array
+		json.NewEncoder(w).Encode([]interface{}{})
+	}
 }
 
 // ChatMessagesHandler returns the message history between two users
@@ -347,35 +355,14 @@ func StartChatManager() {
 	for {
 		select {
 		case client := <-register:
+			chatMutex.Lock()
 			clients[client.UserID] = client
-			broadcastUserStatus(client.UserID, true)
+			chatMutex.Unlock()
 
 		case client := <-unregister:
-			if _, ok := clients[client.UserID]; ok {
-				delete(clients, client.UserID)
-				broadcastUserStatus(client.UserID, false)
-			}
-
-		case message := <-broadcast:
-			// Send to recipient if online
-			if recipient, ok := clients[message.RecipientID]; ok {
-				err := recipient.Conn.WriteJSON(message)
-				if err != nil {
-					log.Printf("Error sending message to recipient: %v", err)
-					recipient.Conn.Close()
-					delete(clients, recipient.UserID)
-				}
-			}
-
-			// Also send back to sender for UI update
-			if sender, ok := clients[message.SenderID]; ok {
-				err := sender.Conn.WriteJSON(message)
-				if err != nil {
-					log.Printf("Error sending message back to sender: %v", err)
-					sender.Conn.Close()
-					delete(clients, sender.UserID)
-				}
-			}
+			chatMutex.Lock()
+			delete(clients, client.UserID)
+			chatMutex.Unlock()
 		}
 	}
 }
@@ -401,6 +388,9 @@ func broadcastUserStatus(userID string, isOnline bool) {
 	for _, client := range clients {
 		err := client.Conn.WriteJSON(statusUpdate)
 		if err != nil {
+			if websocket.IsUnexpectedCloseError(err) {
+				log.Printf("Client disconnected unexpectedly: %v", err)
+			}
 			log.Printf("Error broadcasting status update: %v", err)
 			client.Conn.Close()
 			delete(clients, client.UserID)
