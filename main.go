@@ -39,7 +39,7 @@ func main() {
 	http.HandleFunc("/api/comments", handlers.GetCommentsHandler) 
 	http.HandleFunc("/ws/chat", handlers.ChatWebsocketHandler)
 http.HandleFunc("/api/chat/users", handlers.ChatUsersHandler)
-// http.HandleFunc("/api/chat/messages", handlers.ChatMessagesHandler)
+http.HandleFunc("/api/chat/messages", handlers.ChatMessagesHandler)
 	
 
 	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)
