@@ -167,14 +167,15 @@ async function loadMessages() {
 function createMessageElement(msg) {
     const isCurrentUser = msg.sender_id === getCurrentUserId();
     const messageTime = formatMessageTime(new Date(msg.created_at));
-    
+    const username = isCurrentUser ? 'You' : msg.sender_username;
+    const avatarContent = msg.sender_avatar ?
+    `<img src="${msg.sender_avatar}" class="message-avatar" alt="${username}">` :
+        `<div class="message-avatar-default">${username.charAt(0).toUpperCase()}</div>`;
     return `
-        <div class="message ${isCurrentUser ? 'sent' : 'received'}">
+        <div class="message ${isCurrentUser ? 'sent' : 'received'} data-message-id="${msg.id}">
             <div class="message-header">
-                ${msg.sender_avatar ? 
-                    `<img src="${msg.sender_avatar}" class="message-avatar" alt="${msg.sender_username}">` : 
-                    `<div class="message-avatar-default">${msg.sender_username?.charAt(0)?.toUpperCase() || 'U'}</div>`}
-                <span class="sender">${msg.sender_username}</span>
+                ${avatarContent}
+                <span class="sender">${username}</span>
                 <span class="time">${messageTime}</span>
             </div>
             <div class="message-content">${msg.content}</div>
@@ -203,26 +204,30 @@ function sendMessage() {
     
     if (!content || !currentRecipient || !chatSocket) return;
     
-    const message = {
+    const tempId = Date.now().toString();
+    const tempMessage = {
+        id: tempId,
         recipient_id: currentRecipient,
         content: content,
-    };
-    
-    chatSocket.send(JSON.stringify(message));
-    input.value = '';
-    
-    // Add message to UI immediately
-    const currentUserId = getCurrentUserId();
-    const tempMessage = {
-        sender_id: currentUserId,
-        content: content,
         created_at: new Date().toISOString(),
-        sender_username: 'You' // This will be replaced when the real message comes from server
+        sender_id: getCurrentUserId(),
+        sender_username: 'You',
+        sender_avatar: ''
     };
     
+    // Add temp message
     const messagesList = document.getElementById('messages-list');
     messagesList.insertAdjacentHTML('beforeend', createMessageElement(tempMessage));
     messagesList.scrollTop = messagesList.scrollHeight;
+    
+    // Send via WebSocket
+    chatSocket.send(JSON.stringify({
+        recipient_id: currentRecipient,
+        content: content,
+        temp_id: tempId
+    }));
+    
+    input.value = '';
 }
 
 // Handle WebSocket messages
@@ -238,17 +243,23 @@ function handleWebSocketMessage(data) {
     const isCurrentUser = message.sender_id === getCurrentUserId();
     
     // Only add to UI if relevant
-    if (message.sender_id === currentRecipient || 
-       (message.recipient_id === currentRecipient && isCurrentUser)) {
+     if (message.temp_id) {
+        const tempElement = document.querySelector(`[data-message-id="temp-${message.temp_id}"]`);
+        if (tempElement) {
+            tempElement.remove();
+        }
+    }
+    
+   // Check for existing message
+    const existing = document.querySelector(`[data-message-id="${message.id}"]`);
+    if (!existing) {
         const messagesList = document.getElementById('messages-list');
         messagesList.insertAdjacentHTML('beforeend', createMessageElement(message));
         messagesList.scrollTop = messagesList.scrollHeight;
     }
-    
-    // Update user list
+
+    // Update user list and notifications
     updateUserLastMessage(message.sender_id, message.content);
-    
-    // Play sound for new messages not from self
     if (!isCurrentUser && message.sender_id !== currentRecipient) {
         new Audio('/static/sounds/notification.mp3').play().catch(() => {});
     }
