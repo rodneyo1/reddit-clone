@@ -121,7 +121,21 @@ func handleIncomingMessages(client *Client) {
 		var msgData map[string]interface{}
         err := client.Conn.ReadJSON(&msgData)
         if err != nil {
+			if websocket.IsUnexpectedCloseError(err) {
+                log.Printf("Client disconnected: %v", err)
+            }
             break
+        }
+
+		if msgType, ok := msgData["type"].(string); ok && msgType == "ping" {
+            // Send pong response
+            client.Conn.WriteJSON(map[string]string{"type": "pong"})
+            continue
+        }
+
+		if msgData["recipient_id"] == nil || msgData["content"] == nil {
+            log.Printf("Invalid message format: %+v", msgData)
+            continue
         }
 
 		recipientID, ok1 := msgData["recipient_id"].(string)
@@ -491,9 +505,10 @@ func broadcastUserStatus(userID string, isOnline bool) {
 		for _, client := range userClients {
 			err := client.Conn.WriteJSON(statusUpdate)
 			if err != nil {
-				if websocket.IsUnexpectedCloseError(err) {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 					log.Printf("Client disconnected unexpectedly: %v", err)
 				}
+				break
 				log.Printf("Error broadcasting status update: %v", err)
 				go func(c *Client) {
 					unregister <- c
