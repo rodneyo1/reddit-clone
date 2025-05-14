@@ -18,11 +18,11 @@ function connectWebSocket() {
     const host = window.location.host;
     chatSocket = new WebSocket(`${protocol}//${host}/ws/chat`);
 
-    setInterval(() => {
+     const pingInterval = setInterval(() => {
         if (chatSocket.readyState === WebSocket.OPEN) {
             chatSocket.send(JSON.stringify({ type: 'ping' }));
         }
-    }, 30000);
+    }, 25000);
     chatSocket.onopen = () => {
         console.log('WebSocket connected');
     };
@@ -32,8 +32,11 @@ function connectWebSocket() {
         handleWebSocketMessage(data);
     };
 
-    chatSocket.onclose = () => {
-        console.log('WebSocket disconnected, attempting to reconnect...');
+    chatSocket.onclose = (event) => {
+         clearInterval(pingInterval);
+         if (event.code !== 1000 && event.code !== 1001) { // Only log abnormal closes
+            console.log('WebSocket closed abnormally:', event);
+        }
         setTimeout(connectWebSocket, 3000);
     };
 
