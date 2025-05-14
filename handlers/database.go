@@ -11,8 +11,13 @@ var db *sql.DB
 
 func InitDB() {
     var err error
-    db, err = sql.Open("sqlite3", "./forum.db")
-    _, err = db.Exec("PRAGMA foreign_keys = ON;")
+    db, err = sql.Open("sqlite3", "./forum.db?_parseTime=true&_txlock=immediate&_busy_timeout=5000")
+     _, err = db.Exec(`
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA foreign_keys = ON;
+        PRAGMA busy_timeout = 5000;
+    `)
     if err != nil {
         log.Fatal(err)
     }
@@ -140,6 +145,13 @@ func InitDB() {
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     `
 
+    _, err = db.Exec(`
+   INSERT OR IGNORE INTO user_status (user_id, is_online, last_seen)
+    SELECT id, FALSE, datetime('now') FROM users
+`)
+if err != nil {
+    log.Printf("Error initializing user status: %v", err)
+}
     _, err = db.Exec(createTable)
     if err != nil {
         log.Fatal("Database initialization error:", err)

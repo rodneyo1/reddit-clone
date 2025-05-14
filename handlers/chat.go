@@ -3,9 +3,11 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,7 +32,7 @@ type Client struct {
 
 // Global variables for chat management
 var (
-	clients    = make(map[string]*Client)
+	clients    = make(map[string][]*Client)
 	broadcast  = make(chan Message)
 	register   = make(chan *Client)
 	unregister = make(chan *Client)
@@ -39,11 +41,14 @@ var (
 // Message represents a chat message
 type Message struct {
 	ID          int       `json:"id"`
+	TempID       string    `json:"temp_id,omitempty"`
 	SenderID    string    `json:"sender_id"`
 	RecipientID string    `json:"recipient_id"`
 	Content     string    `json:"content"`
 	CreatedAt   time.Time `json:"created_at"`
 	IsRead      bool      `json:"is_read"`
+	SenderUsername string `json:"sender_username"`
+    SenderAvatar   string `json:"sender_avatar"`
 }
 
 // ChatWebsocketHandler handles WebSocket connections for chat
@@ -87,6 +92,7 @@ func ChatWebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error updating user status: %v", err)
 	}
+	broadcastUserStatus(userID, true)
 
 	// Handle incoming messages
 	go handleIncomingMessages(client)
@@ -98,43 +104,66 @@ func handleIncomingMessages(client *Client) {
 		client.Conn.Close()
 
 		// Update user status to offline
-		_, err := db.Exec(`
+		go func() {
+			_, err := db.Exec(`
 			UPDATE user_status 
 			SET is_online = FALSE, last_seen = ?
 			WHERE user_id = ?`,
-			time.Now(), client.UserID)
-		if err != nil {
-			log.Printf("Error updating user status: %v", err)
-		}
+				time.Now(), client.UserID)
+			if err != nil {
+				log.Printf("Error updating user status: %v", err)
+			}
+			broadcastUserStatus(client.UserID, false)
+		}()
 	}()
 
 	for {
-		_, msgBytes, err := client.Conn.ReadMessage()
-		if err != nil {
-			break
-		}
+		var msgData map[string]interface{}
+        err := client.Conn.ReadJSON(&msgData)
+        if err != nil {
+            break
+        }
 
-		var message Message
-		if err := json.Unmarshal(msgBytes, &message); err != nil {
-			log.Printf("Error decoding message: %v", err)
-			continue
-		}
+		recipientID, ok1 := msgData["recipient_id"].(string)
+        content, ok2 := msgData["content"].(string)
+        tempID, _ := msgData["temp_id"].(string) // Optional field
 
-		message.SenderID = client.UserID
-		message.CreatedAt = time.Now()
-		message.IsRead = false
+        if !ok1 || !ok2 || recipientID == "" || content == "" {
+            log.Printf("Invalid message format: %+v", msgData)
+            continue
+        }
+		 msg := Message{
+            SenderID:     client.UserID,
+            RecipientID:  recipientID,
+            Content:      content,
+            CreatedAt:    time.Now(),
+            IsRead:       false,
+            TempID:       tempID,
+        }
 
-		// Save message to database
-		_, err = db.Exec(`
+		res, err := db.Exec(`
 			INSERT INTO messages (sender_id, recipient_id, content, created_at, is_read)
 			VALUES (?, ?, ?, ?, ?)`,
-			message.SenderID, message.RecipientID, message.Content, message.CreatedAt, message.IsRead)
+			msg.SenderID, msg.RecipientID, msg.Content, msg.CreatedAt, msg.IsRead)
 		if err != nil {
 			log.Printf("Error saving message: %v", err)
 			continue
 		}
 
-		broadcast <- message
+		
+
+		id, _ := res.LastInsertId()
+		msg.ID = int(id)
+
+		var username string
+        var avatar sql.NullString
+        db.QueryRow("SELECT username, avatar_url FROM users WHERE id = ?", msg.SenderID).Scan(&username, &avatar)
+        msg.SenderUsername = username
+        if avatar.Valid {
+            msg.SenderAvatar = avatar.String
+        }
+
+		broadcast <- msg
 	}
 }
 
@@ -160,8 +189,8 @@ func ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
         u.id, 
         u.username, 
         u.avatar_url,
-        us.is_online,
-        us.last_seen,
+        COALESCE(us.is_online, FALSE) as is_online,
+        strftime('%Y-%m-%d %H:%M:%S', COALESCE(us.last_seen, CURRENT_TIMESTAMP)) as last_seen,
         (
             SELECT m.content 
             FROM messages m 
@@ -170,20 +199,20 @@ func ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
             ORDER BY m.created_at DESC 
             LIMIT 1
         ) as last_message_content,
-        (
+         COALESCE((
             SELECT m.created_at 
             FROM messages m 
             WHERE (m.sender_id = u.id OR m.recipient_id = u.id) 
             AND (m.sender_id = ? OR m.recipient_id = ?)  
             ORDER BY m.created_at DESC 
             LIMIT 1
-        ) as last_message_time,
-        (
+        ), CURRENT_TIMESTAMP) as last_message_time,
+         COALESCE((
             SELECT COUNT(*) 
             FROM messages m 
             WHERE m.sender_id = u.id 
             AND m.recipient_id = ?  
-        ) as unread_count
+        ), 0) as unread_count
     FROM users u
     LEFT JOIN user_status us ON u.id = us.user_id
     WHERE u.id != ?`, // Needs 1 param
@@ -217,16 +246,21 @@ func ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
 		var lastMessageTime sql.NullTime
 		var avatarURL sql.NullString
 
+		var (
+			lastSeenStr    string
+			lastMessageStr string
+		)
 		err := rows.Scan(
 			&user.ID,
 			&user.Username,
 			&avatarURL,
 			&user.IsOnline,
-			&user.LastSeen,
+			&lastSeenStr,
 			&lastMessage,
-			&lastMessageTime,
+			&lastMessageStr,
 			&user.UnreadCount,
 		)
+		user.LastSeen, err = time.Parse("2006-01-02 15:04:05", lastSeenStr)
 		if err != nil {
 			log.Printf("Error scanning user: %v", err)
 			continue
@@ -288,36 +322,55 @@ func ChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get messages between users
-	rows, err := db.Query(`
-		SELECT 
-			m.id,
-			m.sender_id,
-			m.recipient_id,
-			m.content,
-			m.created_at,
-			m.is_read,
-			u.username as sender_username,
-			u.avatar_url as sender_avatar
-		FROM messages m
-		JOIN users u ON m.sender_id = u.id
-		WHERE 
-			(m.sender_id = ? AND m.recipient_id = ?) OR 
-			(m.sender_id = ? AND m.recipient_id = ?)
-		ORDER BY m.created_at DESC
-		LIMIT 10 OFFSET ?`,
+	// Start transaction
+	tx, err := db.Begin()
+	if err != nil {
+		log.Printf("Transaction begin error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("Transaction rollback error: %v", err)
+		}
+	}()
+	// defer tx.Rollback()
+
+	// Get messages between users using transaction
+	rows, err := tx.Query(`
+        SELECT 
+            m.id,
+            m.sender_id,
+            m.recipient_id,
+            m.content,
+            m.created_at,
+            m.is_read,
+            u.username,
+            u.avatar_url
+        FROM messages m
+        JOIN users u ON m.sender_id = u.id
+        WHERE 
+            (m.sender_id = ? AND m.recipient_id = ?) OR 
+            (m.sender_id = ? AND m.recipient_id = ?)
+        ORDER BY m.created_at DESC
+        LIMIT 10 OFFSET ?
+        `,
 		currentUserID, recipientID, recipientID, currentUserID, offset)
 	if err != nil {
+		log.Printf("Query error: %v", err)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
 
 	var messages []Message
+	var unreadIDs []interface{}
+
 	for rows.Next() {
 		var msg Message
+		var avatarURL sql.NullString
 		var senderUsername string
-		var senderAvatar sql.NullString
+		// var senderAvatar sql.NullString
 		var isRead bool
 
 		err := rows.Scan(
@@ -326,28 +379,48 @@ func ChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 			&msg.RecipientID,
 			&msg.Content,
 			&msg.CreatedAt,
-			&isRead,
+			&msg.IsRead,
 			&senderUsername,
-			&senderAvatar,
+			&avatarURL,
 		)
 		if err != nil {
 			log.Printf("Error scanning message: %v", err)
 			continue
 		}
 
-		// Mark messages as read if they're sent to the current user
+		if avatarURL.Valid {
+        msg.SenderAvatar = avatarURL.String
+    }
+
+		// Collect unread message IDs
 		if msg.RecipientID == currentUserID && !isRead {
-			_, err = db.Exec("UPDATE messages SET is_read = TRUE WHERE id = ?", msg.ID)
-			if err != nil {
-				log.Printf("Error marking message as read: %v", err)
-			}
+			unreadIDs = append(unreadIDs, msg.ID)
 		}
 
 		messages = append(messages, msg)
 	}
 
+	// Batch update read status if any unread messages
+	if len(unreadIDs) > 0 {
+		query := "UPDATE messages SET is_read = TRUE WHERE id IN (?" +
+			strings.Repeat(",?", len(unreadIDs)-1) + ")"
+		_, err = tx.Exec(query, unreadIDs...)
+		if err != nil {
+			log.Printf("Error marking messages as read: %v", err)
+		}
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		log.Printf("Commit error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(messages)
+	if err := json.NewEncoder(w).Encode(messages); err != nil {
+		log.Printf("Error encoding messages: %v", err)
+	}
 }
 
 // StartChatManager runs the chat manager goroutine
@@ -356,13 +429,42 @@ func StartChatManager() {
 		select {
 		case client := <-register:
 			chatMutex.Lock()
-			clients[client.UserID] = client
+			clients[client.UserID] = append(clients[client.UserID], client)
 			chatMutex.Unlock()
 
 		case client := <-unregister:
 			chatMutex.Lock()
-			delete(clients, client.UserID)
+			if userClients, ok := clients[client.UserID]; ok {
+				for i, c := range userClients {
+					if c == client {
+						clients[client.UserID] = append(userClients[:i], userClients[i+1:]...)
+						break
+					}
+				}
+				if len(clients[client.UserID]) == 0 {
+					delete(clients, client.UserID)
+				}
+			}
 			chatMutex.Unlock()
+		case msg := <-broadcast:
+			chatMutex.RLock()
+			// Send to sender's clients
+			for _, client := range clients[msg.SenderID] {
+				if err := client.Conn.WriteJSON(msg); err != nil {
+					log.Printf("Write error: %v", err)
+					client.Conn.Close()
+					unregister <- client
+				}
+			}
+			// Send to recipient's clients
+			for _, client := range clients[msg.RecipientID] {
+				if err := client.Conn.WriteJSON(msg); err != nil {
+					log.Printf("Write error: %v", err)
+					client.Conn.Close()
+					unregister <- client
+				}
+			}
+			chatMutex.RUnlock()
 		}
 	}
 }
@@ -385,15 +487,19 @@ func broadcastUserStatus(userID string, isOnline bool) {
 	}
 
 	// Broadcast to all connected clients
-	for _, client := range clients {
-		err := client.Conn.WriteJSON(statusUpdate)
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err) {
-				log.Printf("Client disconnected unexpectedly: %v", err)
+	for _, userClients := range clients {
+		for _, client := range userClients {
+			err := client.Conn.WriteJSON(statusUpdate)
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err) {
+					log.Printf("Client disconnected unexpectedly: %v", err)
+				}
+				log.Printf("Error broadcasting status update: %v", err)
+				go func(c *Client) {
+					unregister <- c
+					c.Conn.Close()
+				}(client)
 			}
-			log.Printf("Error broadcasting status update: %v", err)
-			client.Conn.Close()
-			delete(clients, client.UserID)
 		}
 	}
 }
