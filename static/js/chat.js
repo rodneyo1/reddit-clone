@@ -14,17 +14,14 @@ function initChat() {
 
 // Connect to WebSocket
 function connectWebSocket() {
+    if (chatSocket && chatSocket.readyState !== WebSocket.CLOSED) {
+        chatSocket.close();
+    }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    chatSocket = new WebSocket(`${protocol}//${host}/ws/chat`);
-
-     const pingInterval = setInterval(() => {
-        if (chatSocket.readyState === WebSocket.OPEN) {
-            chatSocket.send(JSON.stringify({ type: 'ping' }));
-        }
-    }, 25000);
+    chatSocket = new WebSocket(`${protocol}//${window.location.host}/ws/chat`);
     chatSocket.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WS connected');
+        loadChatUsers(); // Refresh on reconnect
     };
 
     chatSocket.onmessage = (event) => {
@@ -48,10 +45,10 @@ function connectWebSocket() {
 // Load chat users list
 async function loadChatUsers() {
     try {
-         console.log('Loading chat users...');
         const response = await fetch('/api/chat/users');
         if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+            console.error('Server response:', response.status);
+            return;
         }
         
         const data = await response.json();
@@ -59,9 +56,7 @@ async function loadChatUsers() {
         
         // Ensure data is an array before mapping
         if (!Array.isArray(data)) {
-            console.error('Invalid data format received for chat users:', data);
-            renderChatUsers([]); // Render empty list
-            return;
+            throw new Error('Invalid user data format');
         }
         
         renderChatUsers(data);
@@ -74,31 +69,34 @@ async function loadChatUsers() {
 // Render chat users list
 function renderChatUsers(users = []) {
     const userList = document.getElementById('user-list');
-    if (!userList) {
-        console.error('User list element not found');
-        return;
-    }
+    if (!userList) return;
 
-    // Safely handle users array
-    userList.innerHTML = users.length > 0 
-        ? users.map(user => `
-            <div class="chat-user" data-user-id="${user.id}" onclick="openChat('${user.id}', '${user.username}')">
-                <div class="user-avatar">
-                    ${user.avatar_url ? 
-                        `<img src="${user.avatar_url}" alt="${user.username}">` : 
-                        `<div class="default-avatar">${user.username?.charAt(0)?.toUpperCase() || 'U'}</div>`}
-                    <span class="status-indicator ${user.is_online ? 'online' : 'offline'}"></span>
-                </div>
-                <div class="user-info">
-                    <span class="username">${user.username || 'Unknown'}</span>
-                    ${user.last_message ? 
-                        `<span class="last-message">${user.last_message.substring(0, 30)}${user.last_message.length > 30 ? '...' : ''}</span>` : 
-                        ''}
-                </div>
-                ${user.unread_count > 0 ? `<span class="unread-count">${user.unread_count}</span>` : ''}
+    userList.innerHTML = users.map(user => `
+        <div class="chat-user" data-user-id="${user.id}">
+            <div class="user-avatar">
+                ${user.avatar_url ? 
+                    `<img src="${user.avatar_url}" alt="${user.username}">` : 
+                    `<div class="default-avatar">${user.username.charAt(0).toUpperCase()}</div>`}
+                <span class="status-indicator ${user.is_online ? 'online' : 'offline'}"></span>
             </div>
-        `).join('')
-        : '<div class="no-users">No other users available</div>';
+            <div class="user-info">
+                <span class="username">${user.username}</span>
+                ${user.last_message ? 
+                    `<span class="last-message">${user.last_message.substring(0,30)}${user.last_message.length > 30 ? '...' : ''}</span>` : 
+                    ''}
+            </div>
+            ${user.unread_count > 0 ? `<span class="unread-count">${user.unread_count}</span>` : ''}
+        </div>
+    `).join('');
+
+    // Add event listeners properly
+    document.querySelectorAll('.chat-user').forEach(userEl => {
+        userEl.addEventListener('click', () => {
+            const userId = userEl.dataset.userId;
+            const username = userEl.querySelector('.username').textContent;
+            openChat(userId, username);
+        });
+    });
 }
 // Open chat with a specific user
 async function openChat(userId, username) {
@@ -168,18 +166,30 @@ async function loadMessages() {
 
 // Create message element
 function createMessageElement(msg) {
-    const isCurrentUser = msg.sender_id === getCurrentUserId();
+    // Determine message ownership using both server flag and client check
+    const isCurrentUser = msg.is_owner || msg.sender_id === getCurrentUserId();
     const messageTime = formatMessageTime(new Date(msg.created_at));
-    const username = isCurrentUser ? 'You' : msg.sender_username;
-    const avatarContent = msg.sender_avatar ?
-    `<img src="${msg.sender_avatar}" class="message-avatar" alt="${username}">` :
+    const username = isCurrentUser ? 'You' : (msg.sender_username || 'Unknown');
+    
+    // Handle avatar with fallbacks
+    const avatarContent = msg.sender_avatar ? 
+        `<img src="${msg.sender_avatar}" class="message-avatar" alt="${username}">` :
         `<div class="message-avatar-default">${username.charAt(0).toUpperCase()}</div>`;
+
+    // Unique identifier for deduplication
+    const messageId = msg.id ? msg.id : `temp-${msg.temp_id || Date.now()}`;
+
     return `
-        <div class="message ${isCurrentUser ? 'sent' : 'received'} data-message-id="${msg.id}">
+        <div class="message ${isCurrentUser ? 'sent' : 'received'}" 
+             data-message-id="${messageId}"
+             data-sender="${msg.sender_id}"
+             data-recipient="${msg.recipient_id}">
             <div class="message-header">
                 ${avatarContent}
-                <span class="sender">${username}</span>
-                <span class="time">${messageTime}</span>
+                <div class="message-metadata">
+                    <span class="sender">${username}</span>
+                    <span class="time">${messageTime}</span>
+                </div>
             </div>
             <div class="message-content">${msg.content}</div>
         </div>
@@ -215,12 +225,21 @@ function sendMessage() {
         created_at: new Date().toISOString(),
         sender_id: getCurrentUserId(),
         sender_username: 'You',
-        sender_avatar: ''
+        sender_avatar: '',
+        is_owner: true
     };
     
     // Add temp message
     const messagesList = document.getElementById('messages-list');
-    messagesList.insertAdjacentHTML('beforeend', createMessageElement(tempMessage));
+
+    if (currentRecipient === tempMessage.recipient_id) {
+        messagesList.insertAdjacentHTML('beforeend', createMessageElement({
+            ...tempMessage,
+            is_owner: true
+        }));
+        messagesList.scrollTop = messagesList.scrollHeight;
+    }
+    // messagesList.insertAdjacentHTML('beforeend', createMessageElement(tempMessage));
     messagesList.scrollTop = messagesList.scrollHeight;
     
     // Send via WebSocket
@@ -238,6 +257,7 @@ function sendMessage() {
 function handleWebSocketMessage(data) {
     if (data.type === 'status_update') {
         updateUserStatus(data.user_id, data.is_online);
+        loadChatUsers();
         return;
     }
     
@@ -332,31 +352,18 @@ function throttle(func, limit) {
 
 // Get current user ID from session
 function getCurrentUserId() {
-    const sessionCookie = document.cookie.split('; ')
-        .find(row => row.startsWith('session_id='))
-        ?.split('=')[1];
-    
-    if (!sessionCookie) return null;
-    
-    // Get from session storage cache
-    if (sessionStorage.getItem('currentUserId')) {
-        return sessionStorage.getItem('currentUserId');
-    }
-    
-    // Fetch from server if not cached
-    fetch('/api/current-user')
-        .then(response => response.json())
-        .then(data => {
-            if (data.userId) {
-                sessionStorage.setItem('currentUserId', data.userId);
-                return data.userId;
-            }
-            return null;
-        })
-        .catch(error => {
-            console.error('Error getting current user:', error);
-            return null;
-        });
+    return new Promise((resolve) => {
+        const sessionCookie = document.cookie.split('; ')
+            .find(row => row.startsWith('session_id='))
+            ?.split('=')[1];
+
+        if (!sessionCookie) return resolve(null);
+
+        fetch('/api/current-user')
+            .then(response => response.json())
+            .then(data => resolve(data.userId))
+            .catch(() => resolve(null));
+    });
 }
 
 // Close chat
