@@ -10,6 +10,18 @@ type User struct {
 	Password string
 }
 
+type Message struct {
+	ID             int       `json:"id"`
+	TempID         string    `json:"temp_id,omitempty"`
+	SenderID       string    `json:"sender_id"`
+	RecipientID    string    `json:"recipient_id"`
+	Content        string    `json:"content"`
+	CreatedAt      time.Time `json:"created_at"`
+	IsRead         bool      `json:"is_read"`
+	SenderUsername string    `json:"sender_username"`
+	SenderAvatar   string    `json:"sender_avatar"`
+	IsOwner        bool      `json:"is_owner,omitempty"`
+}
 // Post represents a post in the forum
 type Post struct {
 	ID             int
