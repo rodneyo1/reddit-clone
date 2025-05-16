@@ -4,20 +4,24 @@ import "time"
 
 // User represents a user in the system
 type User struct {
-    ID        string
-    Email     string
-    Username  string
-    Password  string
-    GoogleID  string    `json:"google_id,omitempty"`
-    GithubID  string    `json:"github_id,omitempty"`
-    AvatarURL string    `json:"avatar_url,omitempty"`
-    Nickname  string    `json:"nickname,omitempty"`
-    Age       int       `json:"age,omitempty"`
-    Gender    string    `json:"gender,omitempty"`
-    FirstName string    `json:"first_name,omitempty"`
-    LastName  string    `json:"last_name,omitempty"`
+	ID       string
+	Email    string
+	Username string
+	Password string
 }
 
+type Message struct {
+	ID             int       `json:"id"`
+	TempID         string    `json:"temp_id,omitempty"`
+	SenderID       string    `json:"sender_id"`
+	RecipientID    string    `json:"recipient_id"`
+	Content        string    `json:"content"`
+	CreatedAt      time.Time `json:"created_at"`
+	IsRead         bool      `json:"is_read"`
+	SenderUsername string    `json:"sender_username"`
+	SenderAvatar   string    `json:"sender_avatar"`
+	IsOwner        bool      `json:"is_owner,omitempty"`
+}
 // Post represents a post in the forum
 type Post struct {
 	ID             int
@@ -64,53 +68,9 @@ type Session struct {
 	UserID    string
 }
 
-// ChatRoom represents a chat conversation between users
-type ChatRoom struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	IsGroup   bool      `json:"is_group"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	LastMessage *ChatMessage `json:"last_message,omitempty"`
-	UnreadCount int     `json:"unread_count,omitempty"`
-	Members    []ChatRoomMember `json:"members,omitempty"`
-}
-
-// ChatRoomMember represents a user in a chat room
-type ChatRoomMember struct {
-	ID             int       `json:"id"`
-	ChatRoomID     int       `json:"chat_room_id"`
-	UserID         string    `json:"user_id"`
-	Username       string    `json:"username"`
-	AvatarURL      string    `json:"avatar_url"`
-	JoinedAt       time.Time `json:"joined_at"`
-	IsAdmin        bool      `json:"is_admin"`
-	LastReadMessageID int    `json:"last_read_message_id"`
-	Status         string    `json:"status,omitempty"`
-}
-
-// ChatMessage represents a message in a chat
-type ChatMessage struct {
-	ID         int       `json:"id"`
-	ChatRoomID int       `json:"chat_room_id"`
-	SenderID   string    `json:"sender_id"`
-	Username   string    `json:"username,omitempty"`
-	AvatarURL  string    `json:"avatar_url,omitempty"`
-	Content    string    `json:"content"`
-	SentAt     time.Time `json:"sent_at"`
-}
-
-// UserStatus represents the online status of a user
 type UserStatus struct {
-	UserID     string    `json:"user_id"`
-	Username   string    `json:"username,omitempty"`
-	Status     string    `json:"status"` // online, offline, away
-	LastActive time.Time `json:"last_active"`
-}
-
-// WebSocketMessage represents a message sent via WebSocket
-type WebSocketMessage struct {
-	Type       string      `json:"type"`  // message, status, notification, etc.
-	ChatRoomID int         `json:"chat_room_id,omitempty"`
-	Data       interface{} `json:"data"`
+    UserID    string    `json:"user_id"`
+    IsOnline  bool      `json:"is_online"`
+    LastSeen  time.Time `json:"last_seen"`
+    User      User      `json:"user"`
 }
