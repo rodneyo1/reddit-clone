@@ -3,6 +3,7 @@ package handlers
 import (
 	// "html/template"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -125,9 +126,27 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user information
-	var username string
-	var email string
-	err = db.QueryRow("SELECT username, email FROM users WHERE id = ?", userID).Scan(&username, &email)
+	var user User
+	err = db.QueryRow(`
+    SELECT username, email,
+           COALESCE(nickname, ''),
+           COALESCE(avatar_url, ''),
+           COALESCE(age, 0),
+           COALESCE(gender, ''),
+           COALESCE(first_name, ''),
+           COALESCE(last_name, '')
+    FROM users WHERE id = ?`, userID).
+    Scan(
+        &user.Username,
+        &user.Email,
+        &user.Nickname,
+        &user.AvatarURL,
+        &user.Age,
+        &user.Gender,
+        &user.FirstName,
+        &user.LastName,
+    )
+
 	if err != nil {
 		log.Printf("Error fetching user info: %v", err)
 		RenderError(w, r, "Error fetching user information", http.StatusInternalServerError)
@@ -135,8 +154,14 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]any{
-		"Username":     username,
-		"Email":        email,
+		"Username":     user.Username,
+		"Email":        user.Email,
+		"Nickname":     user.Nickname,
+		"AvatarURL":    user.AvatarURL,
+		"Age":          user.Age,
+		"Gender":       user.Gender,
+		"FirstName":    user.FirstName,
+		"LastName":     user.LastName,
 		"CreatedPosts": userPosts,
 		"LikedPosts":   userLikedPosts,
 	}
@@ -145,6 +170,7 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
 	}
+	fmt.Println(data)
 	// tmpl, err := template.ParseFiles("templates/profile.html")
 	// if err != nil {
 	// 	log.Printf("Error parsing profile template: %v", err)

@@ -4,10 +4,18 @@ import "time"
 
 // User represents a user in the system
 type User struct {
-	ID       string
-	Email    string
-	Username string
-	Password string
+    ID        string
+    Email     string
+    Username  string
+    Password  string
+    GoogleID  string
+    GithubID  string
+    AvatarURL string
+    Nickname  string
+    Age       int
+    Gender    string
+    FirstName string
+    LastName  string
 }
 
 type Message struct {
