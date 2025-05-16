@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	// "fmt"
 	"io"
 	"log"
 	"net/http"
@@ -112,15 +111,21 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert categories into the database
-	for _, category := range categories {
+	uniqueCategories := make(map[string]struct{})
+for _, c := range categories {
+	c = strings.TrimSpace(strings.ToLower(c)) // optional normalization
+	if c != "" {
+		uniqueCategories[c] = struct{}{}
+	}
+}
+	for category := range uniqueCategories {
 		_, err = db.Exec("INSERT INTO post_categories (post_id, category) VALUES (?, ?)", postID, category)
 		if err != nil {
 			log.Printf("Error inserting category: %v", err)
-			RenderError(w, r, "Error inserting categories", http.StatusInternalServerError)
 			return
 		}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Post created successfully"}`))
+
+	// Redirect to the posts page after successful creation
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

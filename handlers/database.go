@@ -11,10 +11,21 @@ var db *sql.DB
 
 func InitDB() {
 	var err error
-	db, err = sql.Open("sqlite3", "./forum.db")
-	if err != nil {
-		log.Fatal(err)
-	}
+    db, err = sql.Open("sqlite3", "./forum.db?_parseTime=true&_txlock=immediate&_busy_timeout=5000")
+     _, err = db.Exec(`
+        PRAGMA journal_mode = WAL;
+        PRAGMA synchronous = NORMAL;
+        PRAGMA foreign_keys = ON;
+        PRAGMA busy_timeout = 5000;
+    `)
+    if err != nil {
+        log.Fatal(err)
+    }
+    // Enable foreign key support
+    _, err = db.Exec("PRAGMA foreign_keys = WAL")
+    if err != nil {
+        log.Fatal("Could not enable foreign key support:", err)
+    }
 
 	// Create tables
 	createTable := `
@@ -67,36 +78,41 @@ func InitDB() {
     );
 
     CREATE TABLE IF NOT EXISTS post_categories (
-        post_id INTEGER,
-        category TEXT,
-        FOREIGN KEY(post_id) REFERENCES posts(id)
+        post_id INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+        PRIMARY KEY (post_id, category)
     );
 
     CREATE TABLE IF NOT EXISTS comments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        parent_id INTEGER DEFAULT NULL REFERENCES comments(id) ON DELETE CASCADE,
-        post_id INTEGER,
-        user_id INTEGER, 
-        content TEXT,
+        parent_id INTEGER DEFAULT NULL,
+        post_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        content TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(post_id) REFERENCES posts(id),
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY(parent_id) REFERENCES comments(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS likes (
+     CREATE TABLE IF NOT EXISTS likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER,
-        user_id TEXT,
-        is_like BOOLEAN, -- 1 for like, 0 for dislike
-        FOREIGN KEY(post_id) REFERENCES posts(id),
-        FOREIGN KEY(user_id) REFERENCES users(id),
-        UNIQUE(post_id, user_id) -- Ensure a user can only like/dislike a post once
+        post_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        is_like BOOLEAN NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(post_id, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
         session_id TEXT PRIMARY KEY NOT NULL,
-        user_id TEXT ,
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        user_id TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS comment_likes (
@@ -110,46 +126,38 @@ func InitDB() {
         UNIQUE(user_id, comment_id)
     );
 
-CREATE TABLE IF NOT EXISTS chat_rooms (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    is_group BOOLEAN NOT NULL DEFAULT 0,  -- 0 for DM, 1 for group chat
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id TEXT NOT NULL,
+        recipient_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_read BOOLEAN DEFAULT FALSE,
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-CREATE TABLE IF NOT EXISTS chat_room_members (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_room_id INTEGER NOT NULL,
-    user_id TEXT NOT NULL,
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_admin BOOLEAN DEFAULT 0, -- For group chats, admin privileges
-    last_read_message_id INTEGER DEFAULT 0,
-    FOREIGN KEY(chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
-    FOREIGN KEY(user_id) REFERENCES users(id),
-    UNIQUE(chat_room_id, user_id)
-);
+    CREATE TABLE IF NOT EXISTS user_status (
+        user_id TEXT PRIMARY KEY,
+        is_online BOOLEAN DEFAULT FALSE,
+        last_seen DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
 
-CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_room_id INTEGER NOT NULL,
-    sender_id TEXT NOT NULL,
-    content TEXT NOT NULL,
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(chat_room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE,
-    FOREIGN KEY(sender_id) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS user_statuses (
-    user_id TEXT PRIMARY KEY,
-    status TEXT NOT NULL DEFAULT 'offline', -- 'online', 'offline', 'away'
-    last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_id, recipient_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     `
-	_, err = db.Exec(createTable)
-	if err != nil {
-		log.Fatal(err)
-	}
+
+    _, err = db.Exec(`
+   INSERT OR IGNORE INTO user_status (user_id, is_online, last_seen)
+    SELECT id, FALSE, datetime('now') FROM users
+`)
+if err != nil {
+    log.Printf("Error initializing user status: %v", err)
+}
+    _, err = db.Exec(createTable)
+    if err != nil {
+        log.Fatal("Database initialization error:", err)
+    }
 }

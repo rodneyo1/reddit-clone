@@ -35,6 +35,9 @@ func main() {
 	http.HandleFunc("/api/comment", handlers.CommentHandler)
 	http.HandleFunc("/api/comments", handlers.GetCommentsHandler)
 	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)
+	http.HandleFunc("/ws/chat", handlers.ChatWebsocketHandler)
+	http.HandleFunc("/api/chat/users", handlers.ChatUsersHandler)
+    http.HandleFunc("/api/chat/messages", handlers.ChatMessagesHandler)
 
 	// Auth Endpoints
 	http.HandleFunc("/api/register", handlers.RegisterHandler)
@@ -46,20 +49,12 @@ func main() {
 	http.HandleFunc("/auth/google/callback", handlers.HandleGoogleCallback)
 	http.HandleFunc("/auth/github/callback", handlers.HandleGithubCallback)
 
-	// Chat API endpoints
-	http.HandleFunc("/api/chats", handlers.GetChatsHandler)
-	http.HandleFunc("/api/chats/create", handlers.CreateChatHandler)
-	http.HandleFunc("/api/chats/messages", handlers.GetChatMessagesHandler)
-	http.HandleFunc("/api/chats/members", handlers.GetChatMembersHandler)
-	http.HandleFunc("/api/users/status", handlers.GetUserStatusHandler)
-
-	// // WebSocket endpoint for real-time chat
-	http.HandleFunc("/ws/chat", handlers.ChatWebSocketHandler)
-
 	// Initialize the database and OAuth providers
 	handlers.InitDB()
 	handlers.InitGoogleOAuth()
 	handlers.InitGithubOAuth()
+
+	go handlers.StartChatManager()
 
 	// Start the server
 	log.Println("Server is running on http://localhost:8081")

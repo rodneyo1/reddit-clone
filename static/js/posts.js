@@ -56,27 +56,7 @@ async function fetchHomeContent() {
                 <main>
                     ${isLoggedIn ? `
                     <div id="createPostForm" style="display:none; background:white; padding:20px; margin-bottom:20px; border-radius:8px;">
-                        <h1>Create a New Post</h1>
-                        <form id="post-form" enctype="multipart/form-data">
-                            <label for="post-title">Title:</label>
-                            <input type="text" id="post-title" name="title" required>
-                            <br>
-                            <label for="post-content">Content:</label>
-                            <textarea id="post-content" name="content" required></textarea>
-                            <br>
-                            <label for="post-image">Image (optional, max 20MB):</label>
-                            <input type="file" id="post-image" name="image" accept="image/jpeg,image/png,image/gif">
-                            <br>
-                            <label>Categories (select at least one):</label>
-                            <div class="checkbox-group">
-                                ${validCategories.map(cat => `
-                                    <label><input type="checkbox" name="category" value="${cat}"> ${cat.charAt(0).toUpperCase() + cat.slice(1)}</label>
-                                `).join('')}
-                            </div>
-                            <br>
-                            <button type="submit">Post</button>
-                            <button type="button" onclick="toggleCreatePost()">Cancel</button>
-                        </form>
+                        <!-- Existing create post form -->
                     </div>
                     ` : ''}
                     
@@ -88,6 +68,26 @@ async function fetchHomeContent() {
                         }
                     </div>
                 </main>
+                <!-- Added Chat Sidebar -->
+                <aside class="chat-sidebar">
+                    <div class="chat-users">
+                        <h3>Chat</h3>
+                        <div class="online-users" id="online-users">
+                            Loading users...
+                        </div>
+                    </div>
+                    <div class="chat-messages" id="chat-container" style="display:none;">
+                        <div class="chat-header">
+                    <span id="chat-recipient"></span>
+                    <button class="close-chat" onclick="closeChat()">&times;</button>
+                </div>
+                <div class="messages-list" id="messages-list"></div>
+                <div class="message-input">
+                    <textarea id="message-input" placeholder="Type your message..."></textarea>
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+                    </div>
+                </aside>
             </div>
         `;
     } catch (error) {
@@ -153,6 +153,25 @@ async function fetchFilteredContent(category) {
                         }
                     </div>
                 </main>
+                <aside class="chat-sidebar">
+                    <div class="chat-users">
+                        <h3>Chat</h3>
+                        <div class="online-users" id="online-users">
+                            Loading users...
+                        </div>
+                    </div>
+                    <div class="chat-messages" id="chat-container" style="display:none;">
+                        <div class="chat-header">
+                    <span id="chat-recipient"></span>
+                    <button class="close-chat" onclick="closeChat()">&times;</button>
+                </div>
+                <div class="messages-list" id="messages-list"></div>
+                <div class="message-input">
+                    <textarea id="message-input" placeholder="Type your message..."></textarea>
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+                    </div>
+                </aside>
             </div>
         `;
     } catch (error) {
@@ -163,52 +182,63 @@ async function fetchFilteredContent(category) {
 
 async function handlePostSubmit(event) {
     event.preventDefault();
-
-    if (!window.validateCategories || typeof window.validateCategories !== 'function') {
-        console.error("validateCategories is not available!");
-        return;
-    }
     
-    if (!window.validateCategories()) {
-        return;
-    }
-
-    const form = event.target;
-    const formData = new FormData(form);
-    
-    // Add categories to form data
-    document.querySelectorAll('input[name="category"]:checked').forEach(checkbox => {
-        formData.append('category', checkbox.value);
-    });
+    // Show loading state
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Posting...';
 
     try {
+        if (!window.validateCategories || typeof window.validateCategories !== 'function') {
+            throw new Error("Validation function not available");
+        }
+        
+        if (!window.validateCategories()) {
+            return;
+        }
+
+        const form = event.target;
+        const formData = new FormData(form);
+        
+        // Add categories to form data
+        document.querySelectorAll('input[name="category"]:checked').forEach(checkbox => {
+            formData.append('category', checkbox.value);
+        });
+
         const response = await fetch('/api/posts', {
             method: 'POST',
             body: formData
         });
 
-        if (response.ok) {
-            toggleCreatePost();
-            // Refresh the posts
-            if (window.location.hash === '#/home' || window.location.hash === '') {
-                const app = document.getElementById('app');
-                app.innerHTML = await fetchHomeContent();
-                // Re-attach event listeners
-                document.getElementById('post-form')?.addEventListener('submit', handlePostSubmit);
-            }
-        } else {
-            const error = await response.json();
-            alert(error.error || 'Failed to create post');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to create post');
         }
+
+        // Success - close form and refresh content
+        toggleCreatePost();
+        
+        // Refresh the posts without full page reload
+        const app = document.getElementById('app');
+        app.innerHTML = await fetchHomeContent();
+        
+        // Re-attach event listeners
+        document.getElementById('post-form')?.addEventListener('submit', handlePostSubmit);
+        
     } catch (error) {
-        console.error('Error submitting post:', error);
-        alert('Error submitting post. Please try again.');
+        console.error('Post submission error:', error);
+        alert(error.message || 'Error submitting post. Please try again.');
+    } finally {
+        // Reset button state
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+        }
     }
 }
 
 function toggleCreatePost() {
-    // console.log("Toggle create post function called");
-    
     const createPostForm = document.getElementById('createPostForm');
     const postsList = document.getElementById('posts');
     const postsHeading = document.getElementById('postsHeading');
@@ -218,14 +248,56 @@ function toggleCreatePost() {
         return;
     }
 
-    const shouldShowForm = createPostForm.style.display === 'none' || 
-                          !createPostForm.style.display;
+    const shouldShowForm = createPostForm.style.display === 'none' || !createPostForm.style.display;
+    
+    if (shouldShowForm) {
+        // Initialize form content while maintaining the original layout
+        createPostForm.innerHTML = `
+            <h2>Create New Post</h2>
+            <form id="post-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="post-title">Title:</label>
+                    <input type="text" id="post-title" name="title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="post-content">Content:</label>
+                    <textarea id="post-content" name="content" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="post-image">Image (optional, max 20MB):</label>
+                    <input type="file" id="post-image" name="image" accept="image/*">
+                </div>
+                
+                <div class="form-group">
+                    <label>Categories (select at least one):</label>
+                    <div class="categories-grid">
+                        ${validCategories.map(cat => `
+                            <div class="category-option">
+                                <input type="checkbox" id="cat-${cat}" name="category" value="${cat}">
+                                <label for="cat-${cat}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="submit-btn">Post</button>
+                    <button type="button" class="cancel-btn" onclick="toggleCreatePost()">Cancel</button>
+                </div>
+            </form>
+        `;
+        
+        // Add form submit handler
+        document.getElementById('post-form').addEventListener('submit', handlePostSubmit);
+    }
     
     createPostForm.style.display = shouldShowForm ? 'block' : 'none';
-    
     if (postsList) postsList.style.display = shouldShowForm ? 'none' : 'block';
     if (postsHeading) postsHeading.style.display = shouldShowForm ? 'none' : 'block';
 }
+
 
 function updateLikeUI(postId, likeCount, dislikeCount, isLike) {
     const likeBtn = document.querySelector(`.like-button[data-post-id="${postId}"]`);

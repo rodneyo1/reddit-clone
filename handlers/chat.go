@@ -1,724 +1,456 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
-	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-// WebSocket upgrader
+var chatMutex sync.RWMutex
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all connections for simplicity
+		return true // For development only
 	},
 }
 
-// Map of connected clients
-var clients = make(map[string]*websocket.Conn)
-var clientsMutex = &sync.Mutex{}
-
-// GetChatsHandler returns all chats for the current user
-func GetChatsHandler(w http.ResponseWriter, r *http.Request) {
-	// Get current user from session
-	userID := GetUserIdFromSession(w,r)
-	
-	// Get all chat rooms for the user
-	rows, err := db.Query(`
-		SELECT cr.id, cr.name, cr.is_group, cr.created_at, cr.updated_at,
-		       (SELECT COUNT(*) FROM chat_messages cm 
-		        WHERE cm.chat_room_id = cr.id AND cm.id > crm.last_read_message_id) as unread_count
-		FROM chat_rooms cr
-		JOIN chat_room_members crm ON cr.id = crm.chat_room_id
-		WHERE crm.user_id = ?
-		ORDER BY cr.updated_at DESC
-	`, userID)
-	
-	if err != nil {
-		log.Println("Error getting chats:", err)
-		http.Error(w, "Error getting chats", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-	
-	var chats []ChatRoom
-	for rows.Next() {
-		var chat ChatRoom
-		var unreadCount int
-		err := rows.Scan(&chat.ID, &chat.Name, &chat.IsGroup, &chat.CreatedAt, &chat.UpdatedAt, &unreadCount)
-		if err != nil {
-			log.Println("Error scanning row:", err)
-			continue
-		}
-		
-		chat.UnreadCount = unreadCount
-		
-		// Get last message
-		lastMsg := db.QueryRow(`
-			SELECT cm.id, cm.sender_id, u.username, cm.content, cm.sent_at
-			FROM chat_messages cm
-			JOIN users u ON cm.sender_id = u.id
-			WHERE cm.chat_room_id = ?
-			ORDER BY cm.sent_at DESC
-			LIMIT 1
-		`, chat.ID)
-		
-		var lastMessage ChatMessage
-		err = lastMsg.Scan(&lastMessage.ID, &lastMessage.SenderID, &lastMessage.Username, &lastMessage.Content, &lastMessage.SentAt)
-		if err == nil {
-			chat.LastMessage = &lastMessage
-		}
-		
-		chats = append(chats, chat)
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"chats":   chats,
-	})
+type Client struct {
+	UserID string
+	Conn   *websocket.Conn
 }
 
-// CreateChatHandler creates a new chat room or DM
-func CreateChatHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	
-	// Get current user from session
-	userID := GetUserIdFromSession(w,r)
-	
-	
-	
-	
-	// Parse request
-	var req struct {
-		Name     string   `json:"name"`
-		IsGroup  bool     `json:"is_group"`
-		MemberIDs []string `json:"member_ids"`
-	}
-	
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-	
-	// For DMs, check if chat already exists between these two users
-	if !req.IsGroup && len(req.MemberIDs) == 1 {
-		var chatID int
-		err = db.QueryRow(`
-			SELECT cr.id
-			FROM chat_rooms cr
-			JOIN chat_room_members crm1 ON cr.id = crm1.chat_room_id
-			JOIN chat_room_members crm2 ON cr.id = crm2.chat_room_id
-			WHERE cr.is_group = 0
-			AND crm1.user_id = ?
-			AND crm2.user_id = ?
-		`, userID, req.MemberIDs[0]).Scan(&chatID)
-		
-		if err == nil {
-			// Chat already exists, return it
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"chat_id": chatID,
-				"message": "Chat already exists",
-			})
-			return
-		}
-	}
-	
-	// Start a transaction
-	tx, err := db.Begin()
-	if err != nil {
-		log.Println("Error starting transaction:", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-	
-	// Create new chat room
-	now := time.Now()
-	result, err := tx.Exec(`
-		INSERT INTO chat_rooms (name, is_group, created_at, updated_at)
-		VALUES (?, ?, ?, ?)
-	`, req.Name, req.IsGroup, now, now)
-	
-	if err != nil {
-		tx.Rollback()
-		log.Println("Error creating chat room:", err)
-		http.Error(w, "Error creating chat", http.StatusInternalServerError)
-		return
-	}
-	
-	chatID, err := result.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		log.Println("Error getting last insert ID:", err)
-		http.Error(w, "Error creating chat", http.StatusInternalServerError)
-		return
-	}
-	
-	// Add current user as admin
-	_, err = tx.Exec(`
-		INSERT INTO chat_room_members (chat_room_id, user_id, is_admin)
-		VALUES (?, ?, 1)
-	`, chatID, userID)
-	
-	if err != nil {
-		tx.Rollback()
-		log.Println("Error adding current user to chat:", err)
-		http.Error(w, "Error creating chat", http.StatusInternalServerError)
-		return
-	}
-	
-	// Add other members
-	for _, memberID := range req.MemberIDs {
-		_, err = tx.Exec(`
-			INSERT INTO chat_room_members (chat_room_id, user_id)
-			VALUES (?, ?)
-		`, chatID, memberID)
-		
-		if err != nil {
-			log.Println("Error adding member to chat:", err)
-			// Continue anyway, don't fail if one member can't be added
-		}
-	}
-	
-	err = tx.Commit()
-	if err != nil {
-		log.Println("Error committing transaction:", err)
-		http.Error(w, "Error creating chat", http.StatusInternalServerError)
-		return
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"chat_id": chatID,
-	})
-}
+var (
+	clients    = make(map[string][]*Client)
+	broadcast  = make(chan Message)
+	register   = make(chan *Client)
+	unregister = make(chan *Client)
+)
 
-// GetChatMessagesHandler returns messages for a specific chat
-func GetChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
-	// Get current user from session
-	userID := GetUserIdFromSession(w,r)
-	
-	
-	
-	
-	// Get chat ID from query params
-	chatIDStr := r.URL.Query().Get("chat_id")
-	if chatIDStr == "" {
-		http.Error(w, "Missing chat_id parameter", http.StatusBadRequest)
-		return
-	}
-	
-	chatID, err := strconv.Atoi(chatIDStr)
-	if err != nil {
-		http.Error(w, "Invalid chat_id", http.StatusBadRequest)
-		return
-	}
-	
-	// Check if user is a member of this chat
-	var count int
-	err = db.QueryRow(`
-		SELECT COUNT(*) FROM chat_room_members
-		WHERE chat_room_id = ? AND user_id = ?
-	`, chatID, userID).Scan(&count)
-	
-	if err != nil || count == 0 {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-	
-	// Get messages
-	rows, err := db.Query(`
-		SELECT cm.id, cm.sender_id, u.username, u.avatar_url, cm.content, cm.sent_at
-		FROM chat_messages cm
-		JOIN users u ON cm.sender_id = u.id
-		WHERE cm.chat_room_id = ?
-		ORDER BY cm.sent_at ASC
-	`, chatID)
-	
-	if err != nil {
-		log.Println("Error getting messages:", err)
-		http.Error(w, "Error getting messages", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-	
-	var messages []ChatMessage
-	for rows.Next() {
-		var msg ChatMessage
-		err := rows.Scan(&msg.ID, &msg.SenderID, &msg.Username, &msg.AvatarURL, &msg.Content, &msg.SentAt)
-		if err != nil {
-			log.Println("Error scanning message:", err)
-			continue
-		}
-		msg.ChatRoomID = chatID
-		messages = append(messages, msg)
-	}
-	
-	// Update last read message
-	if len(messages) > 0 {
-		lastMsgID := messages[len(messages)-1].ID
-		_, err = db.Exec(`
-			UPDATE chat_room_members
-			SET last_read_message_id = ?
-			WHERE chat_room_id = ? AND user_id = ?
-		`, lastMsgID, chatID, userID)
-		
-		if err != nil {
-			log.Println("Error updating last read message:", err)
-		}
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":  true,
-		"messages": messages,
-	})
-}
 
-// GetChatMembersHandler returns members of a specific chat
-func GetChatMembersHandler(w http.ResponseWriter, r *http.Request) {
-	// Get current user from session
-	userID := GetUserIdFromSession(w,r)
-	// if err != nil {
-	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
-	
-	// Get chat ID from query params
-	chatIDStr := r.URL.Query().Get("chat_id")
-	if chatIDStr == "" {
-		http.Error(w, "Missing chat_id parameter", http.StatusBadRequest)
-		return
-	}
-	
-	chatID, err := strconv.Atoi(chatIDStr)
-	if err != nil {
-		http.Error(w, "Invalid chat_id", http.StatusBadRequest)
-		return
-	}
-	
-	// Check if user is a member of this chat
-	var count int
-	err = db.QueryRow(`
-		SELECT COUNT(*) FROM chat_room_members
-		WHERE chat_room_id = ? AND user_id = ?
-	`, chatID, userID).Scan(&count)
-	
-	if err != nil || count == 0 {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-	
-	// Get members
-	rows, err := db.Query(`
-		SELECT crm.id, crm.user_id, u.username, u.avatar_url, crm.joined_at, crm.is_admin,
-		       crm.last_read_message_id, COALESCE(us.status, 'offline') as status
-		FROM chat_room_members crm
-		JOIN users u ON crm.user_id = u.id
-		LEFT JOIN user_statuses us ON u.id = us.user_id
-		WHERE crm.chat_room_id = ?
-	`, chatID)
-	
-	if err != nil {
-		log.Println("Error getting members:", err)
-		http.Error(w, "Error getting members", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-	
-	var members []ChatRoomMember
-	for rows.Next() {
-		var member ChatRoomMember
-		err := rows.Scan(
-			&member.ID, &member.UserID, &member.Username, &member.AvatarURL,
-			&member.JoinedAt, &member.IsAdmin, &member.LastReadMessageID, &member.Status,
-		)
-		if err != nil {
-			log.Println("Error scanning member:", err)
-			continue
-		}
-		member.ChatRoomID = chatID
-		members = append(members, member)
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"members": members,
-	})
-}
 
-// GetUserStatusHandler returns the online status of users
-func GetUserStatusHandler(w http.ResponseWriter, r *http.Request) {
-	// Get current user from session
-	// session, err := GetUserIdFromSession(w,r)
-	// if err != nil {
-	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
-	
-	// Get user IDs from query params
-	userIDs := r.URL.Query()["user_id"]
-	if len(userIDs) == 0 {
-		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
-		return
-	}
-	
-	// Build query with placeholders
-	query := `
-		SELECT u.id, u.username, COALESCE(us.status, 'offline') as status, COALESCE(us.last_active, u.id) as last_active
-		FROM users u
-		LEFT JOIN user_statuses us ON u.id = us.user_id
-		WHERE u.id IN (?`
-	
-	for i := 1; i < len(userIDs); i++ {
-		query += ", ?"
-	}
-	query += ")"
-	
-	// Convert userIDs to interface{} for db.Query
-	args := make([]interface{}, len(userIDs))
-	for i, id := range userIDs {
-		args[i] = id
-	}
-	
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		log.Println("Error getting user statuses:", err)
-		http.Error(w, "Error getting user statuses", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-	
-	var statuses []UserStatus
-	for rows.Next() {
-		var status UserStatus
-		err := rows.Scan(&status.UserID, &status.Username, &status.Status, &status.LastActive)
-		if err != nil {
-			log.Println("Error scanning user status:", err)
-			continue
-		}
-		statuses = append(statuses, status)
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"statuses": statuses,
-	})
-}
-
-// ChatWebSocketHandler handles WebSocket connections for real-time chat
-func ChatWebSocketHandler(w http.ResponseWriter, r *http.Request) {
-	// Get current user from session
-	userID := GetUserIdFromSession(w,r)
-	
-	
-	
-	// Upgrade HTTP connection to WebSocket
+func ChatWebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Error upgrading to WebSocket:", err)
+		log.Printf("WebSocket upgrade error: %v", err)
+		return
+	}
+
+	sessionCookie, err := r.Cookie("session_id")
+	if err != nil {
+		conn.Close()
+		return
+	}
+
+	var userID string
+	err = db.QueryRow(`
+		SELECT user_id FROM sessions 
+		WHERE session_id = ? AND expires_at > ?`,
+		sessionCookie.Value, time.Now()).Scan(&userID)
+	if err != nil {
+		conn.Close()
 		return
 	}
 	
-	// Register client
-	clientsMutex.Lock()
-	clients[userID] = conn
-	clientsMutex.Unlock()
-	
-	// Update user status to online
-	_, err = db.Exec(`
-		INSERT INTO user_statuses (user_id, status, last_active)
-		VALUES (?, 'online', CURRENT_TIMESTAMP)
-		ON CONFLICT(user_id) DO UPDATE SET
-		status = 'online',
-		last_active = CURRENT_TIMESTAMP
-	`, userID)
-	
-	if err != nil {
-		log.Println("Error updating user status:", err)
+
+	// Close existing connections
+	chatMutex.Lock()
+	if existing, ok := clients[userID]; ok {
+		for _, c := range existing {
+			c.Conn.Close()
+		}
 	}
-	
-	// Broadcast user status change to all clients
-	broadcastStatus(userID, "online")
-	
-	// Handle incoming messages
-	go handleWebSocketMessages(conn, userID)
+	chatMutex.Unlock()
+
+	client := &Client{UserID: userID, Conn: conn}
+	register <- client
+
+	_, err = db.Exec(`
+		INSERT OR REPLACE INTO user_status (user_id, is_online, last_seen)
+		VALUES (?, TRUE, ?)`,
+		userID, time.Now())
+	if err != nil {
+		log.Printf("Status update error: %v", err)
+	}
+
+	go handleIncomingMessages(client)
 }
 
-// handleWebSocketMessages processes incoming WebSocket messages
-func handleWebSocketMessages(conn *websocket.Conn, userID string) {
+func handleIncomingMessages(client *Client) {
 	defer func() {
-		conn.Close()
-		
-		// Remove client from connected clients
-		clientsMutex.Lock()
-		delete(clients, userID)
-		clientsMutex.Unlock()
-		
-		// Update user status to offline
-		_, err := db.Exec(`
-			UPDATE user_statuses
-			SET status = 'offline', last_active = CURRENT_TIMESTAMP
-			WHERE user_id = ?
-		`, userID)
-		
-		if err != nil {
-			log.Println("Error updating user status to offline:", err)
-		}
-		
-		// Broadcast status change
-		broadcastStatus(userID, "offline")
+		unregister <- client
+		client.Conn.Close()
+		updateUserStatus(client.UserID, false)
 	}()
-	
+
+
+	client.Conn.SetCloseHandler(func(code int, text string) error {
+        log.Printf("Connection closing: %d %s", code, text)
+        return nil
+    })
+
+	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	client.Conn.SetPongHandler(func(string) error {
+		client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
+	})
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	go func() {
+		for range ticker.C {
+			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}()
+
 	for {
-		// Read message from WebSocket
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			log.Println("Error reading from WebSocket:", err)
+		var msgData map[string]interface{}
+		if err := client.Conn.ReadJSON(&msgData); err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("WebSocket error: %v", err)
+			}
 			break
 		}
-		
-		// Parse the message
-		var wsMsg WebSocketMessage
-		err = json.Unmarshal(msg, &wsMsg)
-		if err != nil {
-			log.Println("Error parsing WebSocket message:", err)
+
+		if msgType, ok := msgData["type"].(string); ok && msgType == "ping" {
+			client.Conn.WriteJSON(map[string]string{"type": "pong"})
 			continue
 		}
-		
-		// Handle different message types
-		switch wsMsg.Type {
-		case "message":
-			handleChatMessage(wsMsg, userID)
-		case "status":
-			handleStatusUpdate(wsMsg, userID)
+
+		recipientID, ok1 := msgData["recipient_id"].(string)
+		content, ok2 := msgData["content"].(string)
+		if !ok1 || !ok2 || recipientID == "" || content == "" {
+			continue
 		}
+
+		msg := Message{
+			SenderID:    client.UserID,
+			RecipientID: recipientID,
+			Content:     content,
+			CreatedAt:   time.Now(),
+			TempID:      msgData["temp_id"].(string),
+		}
+
+		res, err := db.Exec(`
+			INSERT INTO messages (sender_id, recipient_id, content, created_at, is_read)
+			VALUES (?, ?, ?, ?, ?)`,
+			msg.SenderID, msg.RecipientID, msg.Content, msg.CreatedAt, false)
+		if err != nil {
+			log.Printf("Message save error: %v", err)
+			continue
+		}
+
+		id, _ := res.LastInsertId()
+		msg.ID = int(id)
+
+		var username string
+		var avatar sql.NullString
+		if err := db.QueryRow("SELECT username, avatar_url FROM users WHERE id = ?", msg.SenderID).
+			Scan(&username, &avatar); err == nil {
+			msg.SenderUsername = username
+			if avatar.Valid {
+				msg.SenderAvatar = avatar.String
+			}
+		}
+
+		broadcast <- msg
 	}
 }
 
-// handleChatMessage processes and stores a new chat message
-func handleChatMessage(wsMsg WebSocketMessage, senderID string) {
-	// Parse the message data
-	msgData, ok := wsMsg.Data.(map[string]interface{})
-	if !ok {
-		log.Println("Invalid message data format")
+func ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
+	sessionCookie, err := r.Cookie("session_id")
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	
-	content, ok := msgData["content"].(string)
-	if !ok || content == "" {
-		log.Println("Missing or invalid message content")
+
+	var currentUserID string
+	if err := db.QueryRow("SELECT user_id FROM sessions WHERE session_id = ?", sessionCookie.Value).
+		Scan(&currentUserID); err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	
-	// Store message in database
-	result, err := db.Exec(`
-		INSERT INTO chat_messages (chat_room_id, sender_id, content)
-		VALUES (?, ?, ?)
-	`, wsMsg.ChatRoomID, senderID, content)
-	
-	if err != nil {
-		log.Println("Error storing chat message:", err)
-		return
-	}
-	
-	// Update chat room's updated_at timestamp
-	_, err = db.Exec(`
-		UPDATE chat_rooms
-		SET updated_at = CURRENT_TIMESTAMP
-		WHERE id = ?
-	`, wsMsg.ChatRoomID)
-	
-	if err != nil {
-		log.Println("Error updating chat room timestamp:", err)
-	}
-	
-	// Get message ID
-	msgID, err := result.LastInsertId()
-	if err != nil {
-		log.Println("Error getting message ID:", err)
-		return
-	}
-	
-	// Get sender info
-	var username, avatarURL string
-	err = db.QueryRow(`
-		SELECT username, avatar_url
-		FROM users WHERE id = ?
-	`, senderID).Scan(&username, &avatarURL)
-	
-	if err != nil {
-		log.Println("Error getting sender info:", err)
-	}
-	
-	// Prepare message for broadcasting
-	message := ChatMessage{
-		ID:         int(msgID),
-		ChatRoomID: wsMsg.ChatRoomID,
-		SenderID:   senderID,
-		Username:   username,
-		AvatarURL:  avatarURL,
-		Content:    content,
-		SentAt:     time.Now(),
-	}
-	
-	// Get all members of this chat room
+
 	rows, err := db.Query(`
-		SELECT user_id
-		FROM chat_room_members
-		WHERE chat_room_id = ?
-	`, wsMsg.ChatRoomID)
-	
+		SELECT 
+			u.id, 
+			u.username, 
+			COALESCE(u.avatar_url, '') as avatar_url,
+			COALESCE(us.is_online, FALSE) as is_online,
+			datetime(COALESCE(us.last_seen, CURRENT_TIMESTAMP)) as last_seen,
+			COALESCE((
+				SELECT m.content FROM messages m 
+				WHERE (m.sender_id = u.id OR m.recipient_id = u.id) 
+				AND (m.sender_id = ? OR m.recipient_id = ?) 
+				ORDER BY m.created_at DESC LIMIT 1
+			), '') as last_message,
+			COALESCE((
+				SELECT datetime(m.created_at) FROM messages m 
+				WHERE (m.sender_id = u.id OR m.recipient_id = u.id) 
+				AND (m.sender_id = ? OR m.recipient_id = ?)  
+				ORDER BY m.created_at DESC LIMIT 1
+			), datetime('now')) as last_message_time,
+			COALESCE((
+				SELECT COUNT(*) FROM messages m 
+				WHERE m.sender_id = u.id AND m.recipient_id = ?
+			), 0) as unread_count
+		FROM users u
+		LEFT JOIN user_status us ON u.id = us.user_id
+		WHERE u.id != ?`,
+		currentUserID, currentUserID,
+		currentUserID, currentUserID,
+		currentUserID,
+		currentUserID)
 	if err != nil {
-		log.Println("Error getting chat members:", err)
+		log.Printf("User query error: %v", err)
+		json.NewEncoder(w).Encode([]interface{}{})
 		return
 	}
 	defer rows.Close()
-	
-	// Broadcast to all members
-	var members []string
+
+	type User struct {
+		ID              string    `json:"id"`
+		Username        string    `json:"username"`
+		AvatarURL       string    `json:"avatar_url"`
+		IsOnline        bool      `json:"is_online"`
+		LastSeen        time.Time `json:"last_seen"`
+		LastMessage     string    `json:"last_message"`
+		LastMessageTime time.Time `json:"last_message_time"`
+		UnreadCount     int       `json:"unread_count"`
+	}
+
+	var users []User
 	for rows.Next() {
-		var memberID string
-		err := rows.Scan(&memberID)
-		if err != nil {
-			log.Println("Error scanning member ID:", err)
+		var u User
+		var lastSeen, lastMsgTime string
+
+		if err := rows.Scan(
+			&u.ID,
+			&u.Username,
+			&u.AvatarURL,
+			&u.IsOnline,
+			&lastSeen,
+			&u.LastMessage,
+			&lastMsgTime,
+			&u.UnreadCount,
+		); err != nil {
 			continue
 		}
-		members = append(members, memberID)
+
+		u.LastSeen, _ = time.Parse("2006-01-02 15:04:05", lastSeen)
+		u.LastMessageTime, _ = time.Parse("2006-01-02 15:04:05", lastMsgTime)
+
+		users = append(users, u)
 	}
-	
-	// Update sender's last read message ID
-	_, err = db.Exec(`
-		UPDATE chat_room_members
-		SET last_read_message_id = ?
-		WHERE chat_room_id = ? AND user_id = ?
-	`, msgID, wsMsg.ChatRoomID, senderID)
-	
-	if err != nil {
-		log.Println("Error updating last read message:", err)
-	}
-	
-	// Broadcast message to all members
-	broadcastToUsers(members, WebSocketMessage{
-		Type:       "message",
-		ChatRoomID: wsMsg.ChatRoomID,
-		Data:       message,
-	})
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
 }
 
-// handleStatusUpdate processes a status update from a user
-func handleStatusUpdate(wsMsg WebSocketMessage, userID string) {
-	// Parse the status data
-	statusData, ok := wsMsg.Data.(map[string]interface{})
-	if !ok {
-		log.Println("Invalid status data format")
-		return
-	}
-	
-	status, ok := statusData["status"].(string)
-	if !ok || (status != "online" && status != "offline" && status != "away") {
-		log.Println("Invalid status value")
-		return
-	}
-	
-	// Update status in database
-	_, err := db.Exec(`
-		INSERT INTO user_statuses (user_id, status, last_active)
-		VALUES (?, ?, CURRENT_TIMESTAMP)
-		ON CONFLICT(user_id) DO UPDATE SET
-		status = ?,
-		last_active = CURRENT_TIMESTAMP
-	`, userID, status, status)
-	
+func ChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
+	sessionCookie, err := r.Cookie("session_id")
 	if err != nil {
-		log.Println("Error updating user status:", err)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	
-	// Broadcast status change to all clients
-	broadcastStatus(userID, status)
-}
 
-// broadcastStatus sends a user's status update to all connected clients
-func broadcastStatus(userID string, status string) {
-	// Get user info
-	var username string
-	err := db.QueryRow(`
-		SELECT username FROM users WHERE id = ?
-	`, userID).Scan(&username)
-	
-	if err != nil {
-		log.Println("Error getting username:", err)
+	var currentUserID string
+	if err := db.QueryRow("SELECT user_id FROM sessions WHERE session_id = ?", sessionCookie.Value).
+		Scan(&currentUserID); err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	
-	// Create status message
-	statusMsg := WebSocketMessage{
-		Type: "status",
-		Data: UserStatus{
-			UserID:     userID,
-			Username:   username,
-			Status:     status,
-			LastActive: time.Now(),
-		},
-	}
-	
-	// Broadcast to all clients
-	broadcastToAll(statusMsg)
-}
 
-// broadcastToAll sends a message to all connected clients
-func broadcastToAll(msg WebSocketMessage) {
-	msgBytes, err := json.Marshal(msg)
-	if err != nil {
-		log.Println("Error marshalling message:", err)
+	recipientID := r.URL.Query().Get("recipient_id")
+	if recipientID == "" {
+		http.Error(w, "Recipient required", http.StatusBadRequest)
 		return
 	}
-	
-	clientsMutex.Lock()
-	defer clientsMutex.Unlock()
-	
-	for _, conn := range clients {
-		err := conn.WriteMessage(websocket.TextMessage, msgBytes)
-		if err != nil {
-			log.Println("Error sending message to client:", err)
-			// Don't remove client here, let the read handler handle disconnects
+
+	offset, _ := fmt.Sscanf(r.URL.Query().Get("offset"), "%d")
+
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query(`
+		SELECT 
+			m.id,
+			m.sender_id,
+			m.recipient_id,
+			m.content,
+			m.created_at,
+			m.is_read,
+			u.username,
+			COALESCE(u.avatar_url, ''),
+			CASE WHEN m.sender_id = ? THEN 1 ELSE 0 END
+		FROM messages m
+		JOIN users u ON m.sender_id = u.id
+		WHERE (m.sender_id = ? AND m.recipient_id = ?)
+			OR (m.sender_id = ? AND m.recipient_id = ?)
+		ORDER BY m.created_at DESC
+		LIMIT 10 OFFSET ?`,
+		currentUserID,
+		currentUserID, recipientID,
+		recipientID, currentUserID,
+		offset)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var messages []Message
+	var unreadIDs []interface{}
+
+	for rows.Next() {
+		var msg Message
+		var avatar string
+		var isOwner int
+
+		if err := rows.Scan(
+			&msg.ID,
+			&msg.SenderID,
+			&msg.RecipientID,
+			&msg.Content,
+			&msg.CreatedAt,
+			&msg.IsRead,
+			&msg.SenderUsername,
+			&avatar,
+			&isOwner,
+		); err != nil {
+			continue
 		}
-	}
-}
 
-// broadcastToUsers sends a message to specific users
-func broadcastToUsers(userIDs []string, msg WebSocketMessage) {
-	msgBytes, err := json.Marshal(msg)
-	if err != nil {
-		log.Println("Error marshalling message:", err)
+		msg.IsOwner = isOwner == 1
+		msg.SenderAvatar = avatar
+
+		if msg.RecipientID == currentUserID && !msg.IsRead {
+			unreadIDs = append(unreadIDs, msg.ID)
+		}
+		messages = append(messages, msg)
+	}
+
+	if len(unreadIDs) > 0 {
+		query := "UPDATE messages SET is_read = TRUE WHERE id IN (?" +
+			strings.Repeat(",?", len(unreadIDs)-1) + ")"
+		tx.Exec(query, unreadIDs...)
+	}
+
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
-	
-	clientsMutex.Lock()
-	defer clientsMutex.Unlock()
-	
-	for _, userID := range userIDs {
-		if conn, ok := clients[userID]; ok {
-			err := conn.WriteMessage(websocket.TextMessage, msgBytes)
-			if err != nil {
-				log.Println("Error sending message to client:", err)
+
+	json.NewEncoder(w).Encode(messages)
+}
+
+func StartChatManager() {
+	for {
+		select {
+		case client := <-register:
+			chatMutex.Lock()
+			if existing, ok := clients[client.UserID]; ok {
+				for _, c := range existing {
+					c.Conn.Close()
+				}
+			}
+			clients[client.UserID] = []*Client{client}
+			chatMutex.Unlock()
+			broadcastUserStatus(client.UserID, true)
+
+		case client := <-unregister:
+			chatMutex.Lock()
+			if userClients, ok := clients[client.UserID]; ok {
+				for i, c := range userClients {
+					if c == client {
+						clients[client.UserID] = append(userClients[:i], userClients[i+1:]...)
+						break
+					}
+				}
+				if len(clients[client.UserID]) == 0 {
+					delete(clients, client.UserID)
+					go broadcastUserStatus(client.UserID, false)
+				}
+			}
+			chatMutex.Unlock()
+
+		case msg := <-broadcast:
+			chatMutex.RLock()
+			defer chatMutex.RUnlock()
+
+			if senderClients, ok := clients[msg.SenderID]; ok {
+				for _, client := range senderClients {
+					senderMsg := msg
+					senderMsg.IsOwner = true
+					client.Conn.WriteJSON(senderMsg)
+				}
+			}
+
+			if recipientClients, ok := clients[msg.RecipientID]; ok {
+				for _, client := range recipientClients {
+					senderMsg := msg
+					senderMsg.IsOwner = false
+					client.Conn.WriteJSON(senderMsg)
+				}
 			}
 		}
+	}
+}
+
+func broadcastUserStatus(userID string, isOnline bool) {
+    var username string
+    if err := db.QueryRow("SELECT username FROM users WHERE id = ?", userID).Scan(&username); err != nil {
+        return
+    }
+
+    status := map[string]interface{}{
+        "type":      "status_update",
+        "user_id":   userID,
+        "username":  username,
+        "is_online": isOnline,
+        "timestamp": time.Now().Unix(),
+    }
+
+    chatMutex.RLock()
+    defer chatMutex.RUnlock()
+
+    for _, userClients := range clients {
+        for _, client := range userClients {
+            if err := client.Conn.WriteJSON(status); err != nil {
+                if websocket.IsUnexpectedCloseError(err) {
+                    // Queue for cleanup
+                    go func(c *Client) {
+                        unregister <- c
+                        c.Conn.Close()
+                    }(client)
+                }
+            }
+        }
+    }
+}
+
+func updateUserStatus(userID string, online bool) {
+	_, err := db.Exec(`
+		INSERT OR REPLACE INTO user_status 
+		(user_id, is_online, last_seen)
+		VALUES (?, ?, ?)`,
+		userID, online, time.Now())
+	if err != nil {
+		log.Printf("Status update error: %v", err)
 	}
 }
