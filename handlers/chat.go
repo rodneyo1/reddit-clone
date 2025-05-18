@@ -413,8 +413,15 @@ func StartChatManager() {
 }
 
 func broadcastUserStatus(userID string, isOnline bool) {
+	var lastSeen time.Time
     var username string
-    if err := db.QueryRow("SELECT username FROM users WHERE id = ?", userID).Scan(&username); err != nil {
+    err := db.QueryRow(`
+        SELECT u.username, us.last_seen 
+        FROM user_status us
+		JOIN users u ON us.user_id = u.id 
+        WHERE us.user_id = ?`, userID).Scan(&username, &lastSeen)
+    if err != nil {
+        log.Printf("Error getting user status: %v", err)
         return
     }
 
@@ -423,6 +430,7 @@ func broadcastUserStatus(userID string, isOnline bool) {
         "user_id":   userID,
         "username":  username,
         "is_online": isOnline,
+		"last_seen":  lastSeen.Format(time.RFC3339),
         "timestamp": time.Now().Unix(),
     }
 
@@ -432,13 +440,13 @@ func broadcastUserStatus(userID string, isOnline bool) {
     for _, userClients := range clients {
         for _, client := range userClients {
             if err := client.Conn.WriteJSON(status); err != nil {
-                if websocket.IsUnexpectedCloseError(err) {
-                    // Queue for cleanup
-                    go func(c *Client) {
-                        unregister <- c
-                        c.Conn.Close()
-                    }(client)
-                }
+                // if websocket.IsUnexpectedCloseError(err) {
+                //     // Queue for cleanup
+                //     go func(c *Client) {
+                //         unregister <- c
+                //         c.Conn.Close()
+                //     }(client)
+                // }
             }
         }
     }
