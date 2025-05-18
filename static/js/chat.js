@@ -71,7 +71,15 @@ function renderChatUsers(users = []) {
     const userList = document.getElementById('user-list');
     if (!userList) return;
 
-    userList.innerHTML = users.map(user => `
+    userList.innerHTML = users
+        .sort((a, b) => {
+            // Sort by last message time, then alphabetically
+            if (a.last_message_time && b.last_message_time) {
+                return new Date(b.last_message_time) - new Date(a.last_message_time);
+            }
+            return a.username.localeCompare(b.username);
+        })
+        .map(user => `
         <div class="chat-user" data-user-id="${user.id}">
             <div class="user-avatar">
                 ${user.avatar_url ? 
@@ -82,8 +90,8 @@ function renderChatUsers(users = []) {
             <div class="user-info">
                 <span class="username">${user.username}</span>
                 ${user.last_message ? 
-                    `<span class="last-message">${user.last_message.substring(0,30)}${user.last_message.length > 30 ? '...' : ''}</span>` : 
-                    ''}
+                    `<span class="last-message">${user.last_message.substring(0,30)}</span>` : 
+                    '<span class="last-message">No messages yet</span>'}
             </div>
             ${user.unread_count > 0 ? `<span class="unread-count">${user.unread_count}</span>` : ''}
         </div>
@@ -257,7 +265,7 @@ function sendMessage() {
 function handleWebSocketMessage(data) {
     if (data.type === 'status_update') {
         updateUserStatus(data.user_id, data.is_online);
-        loadChatUsers();
+        // loadChatUsers();
         return;
     }
     
@@ -294,10 +302,25 @@ function updateUserStatus(userId, isOnline) {
     if (userElement) {
         const indicator = userElement.querySelector('.status-indicator');
         if (indicator) {
-            indicator.classList.toggle('online', isOnline);
-            indicator.classList.toggle('offline', !isOnline);
+           indicator.classList.remove('online', 'offline');
+            indicator.classList.add(isOnline ? 'online' : 'offline');
+
+            // Update last seen tooltip
+            const lastSeen = isOnline ? 'Online now' : `Last seen ${formatLastSeen(data.last_seen)}`;
+            indicator.title = lastSeen;
         }
     }
+}
+
+function formatLastSeen(timestamp) {
+    const now = new Date();
+    const lastSeen = new Date(timestamp);
+    const diffMinutes = Math.round((now - lastSeen) / 60000);
+    
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes/60)}h ago`;
+    return `${Math.floor(diffMinutes/1440)}d ago`;
 }
 
 // Update last message in user list
