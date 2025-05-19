@@ -1046,6 +1046,8 @@ img {
 
 
 .user-avatar {
+    position: relative;
+    margin: right;
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -1142,6 +1144,31 @@ img {
 .user-info {
     display: flex;
     flex-direction: column;
+    flex-grow: 1;
+}
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 8px;
+}
+
+.status-indicator.online {
+    background-color: #4CAF50;
+    box-shadow: 0 0 8px #4CAF50;
+}
+
+.status-indicator.offline {
+    background-color: #cccccc;
+}
+
+.chat-user {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 .username {
