@@ -31,14 +31,19 @@ func InitDB() {
     // Create tables
     createTable := `
     CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY,        -- UUID as TEXT
         email TEXT UNIQUE NOT NULL,
         username TEXT NOT NULL,
         password TEXT,
-        google_id TEXT UNIQUE,
-        github_id TEXT UNIQUE,
-        avatar_url TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        google_id TEXT UNIQUE,             -- Google's unique user ID
+        github_id TEXT UNIQUE,             -- GitHub's unique user ID
+        avatar_url TEXT,            -- Profile picture URL
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        nickname TEXT,
+        age INTEGER,
+        gender TEXT,
+        first_name TEXT,
+        last_name TEXT
     );
 
     CREATE TABLE IF NOT EXISTS google_auth (
