@@ -1358,6 +1358,17 @@ img {
 .message-input-container button:hover {
     background-color: #3a6270;
 }
+.avatar {
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.avatar-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+}
+
 
 /* .online-users {
     margin-top: 15px;

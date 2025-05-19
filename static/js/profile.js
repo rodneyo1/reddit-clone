@@ -48,23 +48,35 @@ async function fetchProfileContent() {
 
         return `
             <div class="profile-container">
-                <div class="profile-header">
-                    <h1><i class="fas fa-user-circle"></i> ${profileData.Username}'s Profile</h1>
-                    <p><i class="fas fa-envelope"></i> ${profileData.Email}</p>
-                </div>
+    <div class="profile-header">
+        <div class="avatar">
+            ${profileData.AvatarURL 
+                ? `<img src="${profileData.AvatarURL}" alt="Avatar" class="avatar-img">` 
+                : `<i class="fas fa-user-circle fa-4x"></i>`}
+        </div>
+        <h1><i class="fas fa-user-circle"></i> ${profileData.Username}'s Profile</h1>
+        <p><i class="fas fa-envelope"></i> ${profileData.Email}</p>
+        ${profileData.Nickname ? `<p><i class="fas fa-smile"></i> Nickname: ${profileData.Nickname}</p>` : ''}
+        ${profileData.FirstName || profileData.LastName 
+            ? `<p><i class="fas fa-id-card"></i> Name: ${profileData.FirstName || ''} ${profileData.LastName || ''}</p>` 
+            : ''}
+        ${profileData.Age ? `<p><i class="fas fa-birthday-cake"></i> Age: ${profileData.Age}</p>` : ''}
+        ${profileData.Gender ? `<p><i class="fas fa-venus-mars"></i> Gender: ${profileData.Gender}</p>` : ''}
+    </div>
 
-                <div class="profile-sections">
-                    <section class="profile-section">
-                        <h2><i class="fas fa-pencil-alt"></i> Your Posts</h2>
-                        ${createdPostsHTML}
-                    </section>
+    <div class="profile-sections">
+        <section class="profile-section">
+            <h2><i class="fas fa-pencil-alt"></i> Your Posts</h2>
+            ${createdPostsHTML}
+        </section>
 
-                    <section class="profile-section">
-                        <h2><i class="fas fa-heart"></i> Posts You've Liked</h2>
-                        ${likedPostsHTML}
-                    </section>
-                </div>
-            </div>
+        <section class="profile-section">
+            <h2><i class="fas fa-heart"></i> Posts You've Liked</h2>
+            ${likedPostsHTML}
+        </section>
+    </div>
+</div>
+
         `;
     } catch (error) {
         console.error('Error fetching profile:', error);
