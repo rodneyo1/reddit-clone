@@ -60,7 +60,9 @@ async function render(path) {
                     app.innerHTML = await fetchRegisterContent();
                     break;
                 case '/profile':
+                    case '/profile':
                     app.innerHTML = await fetchProfileContent();
+                    window.attachProfileFormHandler();
                     break;
                 case '/logout':
                     await handleLogout();

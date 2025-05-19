@@ -136,16 +136,16 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
            COALESCE(first_name, ''),
            COALESCE(last_name, '')
     FROM users WHERE id = ?`, userID).
-    Scan(
-        &user.Username,
-        &user.Email,
-        &user.Nickname,
-        &user.AvatarURL,
-        &user.Age,
-        &user.Gender,
-        &user.FirstName,
-        &user.LastName,
-    )
+		Scan(
+			&user.Username,
+			&user.Email,
+			&user.Nickname,
+			&user.AvatarURL,
+			&user.Age,
+			&user.Gender,
+			&user.FirstName,
+			&user.LastName,
+		)
 
 	if err != nil {
 		log.Printf("Error fetching user info: %v", err)
@@ -183,4 +183,64 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	// 	RenderError(w, r, "Error rendering profile page", http.StatusInternalServerError)
 	// 	return
 	// }
+}
+
+// UpdateProfileHandler handles the profile update requests
+// It supports both POST and PUT methods for updating user information
+// It expects a JSON payload with the following fields:
+// - id: User ID (required)
+func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodPut {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload struct {
+		ID        string `json:"id"` // assumed to come from session or frontend
+		Nickname  string `json:"nickname"`
+		AvatarURL string `json:"avatar_url"`
+		Age       *int   `json:"age"` // pointer to distinguish 0 from missing
+		Gender    string `json:"gender"`
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		return
+	}
+
+	if payload.ID == "" {
+		http.Error(w, "Missing user ID", http.StatusBadRequest)
+		return
+	}
+
+	query := `UPDATE users SET 
+		nickname = COALESCE(NULLIF(?, ''), nickname),
+		avatar_url = COALESCE(NULLIF(?, ''), avatar_url),
+		age = COALESCE(?, age),
+		gender = COALESCE(NULLIF(?, ''), gender),
+		first_name = COALESCE(NULLIF(?, ''), first_name),
+		last_name = COALESCE(NULLIF(?, ''), last_name)
+		WHERE id = ?`
+
+	_, err := db.Exec(query,
+		payload.Nickname,
+		payload.AvatarURL,
+		payload.Age,
+		payload.Gender,
+		payload.FirstName,
+		payload.LastName,
+		payload.ID,
+	)
+	if err != nil {
+		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"success": true,
+		"message": "Profile updated successfully",
+	})
 }

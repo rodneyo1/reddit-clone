@@ -10,7 +10,7 @@ async function fetchProfileContent() {
         }
 
         const profileData = await response.json();
-
+        console.log(profileData)
         // Generate HTML for created posts
         const createdPostsHTML = profileData.CreatedPosts && profileData.CreatedPosts.length > 0 
             ? profileData.CreatedPosts.map(post => `
@@ -62,6 +62,7 @@ async function fetchProfileContent() {
             : ''}
         ${profileData.Age ? `<p><i class="fas fa-birthday-cake"></i> Age: ${profileData.Age}</p>` : ''}
         ${profileData.Gender ? `<p><i class="fas fa-venus-mars"></i> Gender: ${profileData.Gender}</p>` : ''}
+        
     </div>
 
     <div class="profile-sections">
@@ -75,6 +76,54 @@ async function fetchProfileContent() {
             ${likedPostsHTML}
         </section>
     </div>
+
+    
+</div>
+<div class="update-profile">
+       <form id="profile-update-form">
+    <h2>Update Your Profile</h2>
+
+    <!-- Hidden field for user ID (optional if using sessions/JWTs) -->
+    <input type="hidden" name="id" value="${profileData.ID}">
+
+    <label>
+        Nickname:
+        <input type="text" name="nickname" value="${profileData.Nickname || ''}">
+    </label>
+
+    <label>
+        Avatar URL:
+        <input type="url" name="avatar_url" value="${profileData.AvatarURL || ''}">
+    </label>
+
+    <label>
+        Age:
+        <input type="number" name="age" min="0" value="${profileData.Age || ''}">
+    </label>
+
+    <label>
+        Gender:
+        <select name="gender">
+            <option value="">-- Select Gender --</option>
+            <option value="Male" ${profileData.Gender === "Male" ? "selected" : ""}>Male</option>
+            <option value="Female" ${profileData.Gender === "Female" ? "selected" : ""}>Female</option>
+            <option value="Other" ${profileData.Gender === "Other" ? "selected" : ""}>Other</option>
+        </select>
+    </label>
+
+    <label>
+        First Name:
+        <input type="text" name="first_name" value="${profileData.FirstName || ''}">
+    </label>
+
+    <label>
+        Last Name:
+        <input type="text" name="last_name" value="${profileData.LastName || ''}">
+    </label>
+
+    <button type="submit">Update Profile</button>
+</form>
+     
 </div>
 
         `;
@@ -83,3 +132,39 @@ async function fetchProfileContent() {
         return '<p class="error-message">Failed to load profile. Please try again.</p>';
     }
 }
+
+// profile.js
+window.attachProfileFormHandler = function () {
+    const form = document.getElementById("profile-update-form");
+    if (!form) return;
+
+    form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const payload = {};
+        for (const [key, value] of formData.entries()) {
+            if (value !== "") {
+                payload[key] = key === "age" ? parseInt(value, 10) : value;
+            }
+        }
+
+        try {
+            const res = await fetch("/api/profile/update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                alert("Profile updated successfully!");
+                location.reload();
+            } else {
+                alert("Error updating profile: " + (result.message || "Unknown error"));
+            }
+        } catch (err) {
+            console.error("Failed to update profile:", err);
+            alert("Something went wrong. Please try again.");
+        }
+    });
+};
