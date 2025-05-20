@@ -440,13 +440,6 @@ func broadcastUserStatus(userID string, isOnline bool) {
     for _, userClients := range clients {
         for _, client := range userClients {
             if err := client.Conn.WriteJSON(status); err != nil {
-                // if websocket.IsUnexpectedCloseError(err) {
-                //     // Queue for cleanup
-                //     go func(c *Client) {
-                //         unregister <- c
-                //         c.Conn.Close()
-                //     }(client)
-                // }
             }
         }
     }
