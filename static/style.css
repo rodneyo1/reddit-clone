@@ -1047,6 +1047,7 @@ img {
 
 .user-avatar {
     position: relative;
+    display: inline-block;
     margin: right;
     width: 32px;
     height: 32px;
@@ -1147,11 +1148,16 @@ img {
     flex-grow: 1;
 }
 .status-indicator {
-    width: 10px;
-    height: 10px;
+    width: 15px;
+    height: 15px;
+    position: absolute;
     border-radius: 50%;
     display: inline-block;
     margin-left: 8px;
+    bottom: 4px;        
+    right: 2px;        
+    border: 2px solid white;
+    z-index: 2;
 }
 
 .status-indicator.online {
