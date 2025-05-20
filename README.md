@@ -1,7 +1,8 @@
-# Web Forum Project-Authentication
+# Real-Time-Forum Project-Authentication
 
 ## Project Overview
-This project is designed to create a web forum that allows users to communicate by creating posts and comments. Key features include liking/disliking posts and comments, associating categories with posts, and filtering posts based on various criteria.
+This project is designed to create a real-time-forum that allows users to communicate by creating posts and comments. Users will be able to send private messages to each other.
+
 
 ## Features
 - **User Authentication**: Secure access with user login and registration.
@@ -10,6 +11,7 @@ This project is designed to create a web forum that allows users to communicate 
   - **Google OAuth**: Users can log in using their Google accounts.
   - **GitHub OAuth**: Users can log in using their GitHub accounts.
   - **Session Management**: Each user can have only one active session at a time.
+  - **Private Messages**: Users can be able to send private messages to each other.
 
 - **Post Management**: Create and view post(s), .
 - **Comments**: Registered users can comment on posts, fostering discussion.
@@ -36,7 +38,7 @@ This project is designed to create a web forum that allows users to communicate 
 To install this project, follow these steps:
 1. Clone the repository: 
    ```bash
-   git clone https://learn.zone01kisumu.ke/git/hanapiko/forum
+   git clone https://learn.zone01kisumu.ke/git/rodnochieng/real-time-forum.git
 2. Navigate to the project directory:
    ```bash
    cd forum
@@ -96,9 +98,7 @@ We welcome contributions! Please follow these guidelines:
 
 
 ## Authors
-- antmusumba - [GitHub Profile](https://github.com/antmusumba)
-- weakinyi - [GitHub Profile](https://github.com/Wendy-Tabitha)
-- Philip38-hub - [GitHub Profile](https://github.com/Philip38-hub)
+- rodnochieng - [GitHub Profile](https://github.com/rodnochieng)
 - hanapiko - [GitHub Profile](https://github.com/hanapiko)
 
 
