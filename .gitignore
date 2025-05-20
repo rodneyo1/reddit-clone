@@ -11,3 +11,4 @@
 *.db3-journal
 *.sqlite-wal
 *.sqlite-shm
+.vscode
