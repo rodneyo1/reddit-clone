@@ -24,6 +24,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Username string `json:"username"`
 		Password string `json:"password"`
+		AvatarURL string `json:"avatar_url"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&newUser); err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -110,17 +111,22 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Generate a new UUID for the user
 	userID := uuid.New().String()
+// Generate default avatar using robohash
+newUser.AvatarURL = "https://robohash.org/" + userID
 
-	// Create user
-	_, err = db.Exec("INSERT INTO users (id, email, username, password) VALUES (?, ?, ?, ?)", userID, newUser.Email, newUser.Username, hashedPassword)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Database error",
-		})
-		return
-	}
+// Create user
+_, err = db.Exec(
+	"INSERT INTO users (id, email, username, password, avatar_url) VALUES (?, ?, ?, ?, ?)",
+	userID, newUser.Email, newUser.Username, hashedPassword, newUser.AvatarURL,
+)
+if err != nil {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": false,
+		"error":   "Database error",
+	})
+	return
+}
 
 	// Return success response
 	w.Header().Set("Content-Type", "application/json")

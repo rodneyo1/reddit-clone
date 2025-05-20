@@ -1,0 +1,14 @@
+# SQLite database files
+*.sqlite3
+*.sqlite
+*.db
+*.db3
+
+# Optional: ignore SQLite journaling and temporary files
+*.sqlite-journal
+*.db-journal
+*.sqlite3-journal
+*.db3-journal
+*.sqlite-wal
+*.sqlite-shm
+.vscode
