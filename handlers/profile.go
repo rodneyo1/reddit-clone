@@ -194,12 +194,17 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
+	userID := GetUserIdFromSession(w, r)
+if userID == "" {
+	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	return
+}
+
 
 	var payload struct {
-		ID        string `json:"id"` // assumed to come from session or frontend
 		Nickname  string `json:"nickname"`
 		AvatarURL string `json:"avatar_url"`
-		Age       *int   `json:"age"` // pointer to distinguish 0 from missing
+		Age       int   `json:"age"` // pointer to distinguish 0 from missing
 		Gender    string `json:"gender"`
 		FirstName string `json:"first_name"`
 		LastName  string `json:"last_name"`
@@ -209,11 +214,7 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 		return
 	}
-
-	if payload.ID == "" {
-		http.Error(w, "Missing user ID", http.StatusBadRequest)
-		return
-	}
+	fmt.Println(payload)
 
 	query := `UPDATE users SET 
 		nickname = COALESCE(NULLIF(?, ''), nickname),
@@ -231,7 +232,7 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		payload.Gender,
 		payload.FirstName,
 		payload.LastName,
-		payload.ID,
+		userID,
 	)
 	if err != nil {
 		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
