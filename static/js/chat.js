@@ -3,6 +3,7 @@ let currentRecipient = null;
 let messageOffset = 0;
 let isLoadingMessages = false;
 let hasMoreMessages = true;
+const renderedMessages = new Set();
 
 // Initialize chat functionality
 function initChat() {
@@ -228,6 +229,7 @@ function sendMessage() {
     const tempId = Date.now().toString();
     const tempMessage = {
         id: tempId,
+        temp_id: tempId,
         recipient_id: currentRecipient,
         content: content,
         created_at: new Date().toISOString(),
@@ -241,14 +243,14 @@ function sendMessage() {
     const messagesList = document.getElementById('messages-list');
 
     if (currentRecipient === tempMessage.recipient_id) {
-        messagesList.insertAdjacentHTML('beforeend', createMessageElement({
-            ...tempMessage,
-            is_owner: true
-        }));
-        messagesList.scrollTop = messagesList.scrollHeight;
+        if (!renderedMessages.has(tempId)) {
+            messagesList.insertAdjacentHTML('beforeend', createMessageElement(tempMessage));
+            renderedMessages.add(tempId); //Avoid future duplication
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
     }
     // messagesList.insertAdjacentHTML('beforeend', createMessageElement(tempMessage));
-    messagesList.scrollTop = messagesList.scrollHeight;
+    // messagesList.scrollTop = messagesList.scrollHeight;
     
     // Send via WebSocket
     chatSocket.send(JSON.stringify({
@@ -263,6 +265,12 @@ function sendMessage() {
 // Handle WebSocket messages
 // Update handleWebSocketMessage
 function handleWebSocketMessage(data) {
+    const messageId = data.temp_id || data.id;
+
+    if (renderedMessages.has(messageId)) {
+        return;
+    }
+    
     if (data.type === 'status_update') {
         updateUserStatus(data.user_id, data.is_online);
         // loadChatUsers();
@@ -287,6 +295,8 @@ function handleWebSocketMessage(data) {
         const messagesList = document.getElementById('messages-list');
         messagesList.insertAdjacentHTML('beforeend', createMessageElement(message));
         messagesList.scrollTop = messagesList.scrollHeight;
+
+        renderedMessages.add(messageId);
     }
 
     // Update user list and notifications
