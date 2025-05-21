@@ -69,25 +69,7 @@ async function fetchHomeContent() {
                     </div>
                 </main>
                 <!-- Added Chat Sidebar -->
-                <aside class="chat-sidebar">
-                    <div class="chat-users">
-                        <h3>Chat</h3>
-                        <div class="online-users" id="online-users">
-                            Loading users...
-                        </div>
-                    </div>
-                    <div class="chat-messages" id="chat-container" style="display:none;">
-                        <div class="chat-header">
-                    <span id="chat-recipient"></span>
-                    <button class="close-chat" onclick="closeChat()">&times;</button>
-                </div>
-                <div class="messages-list" id="messages-list"></div>
-                <div class="message-input">
-                    <textarea id="message-input" placeholder="Type your message..."></textarea>
-                    <button onclick="sendMessage()">Send</button>
-                </div>
-                    </div>
-                </aside>
+            
             </div>
         `;
     } catch (error) {
@@ -153,25 +135,7 @@ async function fetchFilteredContent(category) {
                         }
                     </div>
                 </main>
-                <aside class="chat-sidebar">
-                    <div class="chat-users">
-                        <h3>Chat</h3>
-                        <div class="online-users" id="online-users">
-                            Loading users...
-                        </div>
-                    </div>
-                    <div class="chat-messages" id="chat-container" style="display:none;">
-                        <div class="chat-header">
-                    <span id="chat-recipient"></span>
-                    <button class="close-chat" onclick="closeChat()">&times;</button>
-                </div>
-                <div class="messages-list" id="messages-list"></div>
-                <div class="message-input">
-                    <textarea id="message-input" placeholder="Type your message..."></textarea>
-                    <button onclick="sendMessage()">Send</button>
-                </div>
-                    </div>
-                </aside>
+                
             </div>
         `;
     } catch (error) {
