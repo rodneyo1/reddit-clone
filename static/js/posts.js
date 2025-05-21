@@ -68,7 +68,6 @@ async function fetchHomeContent() {
                         }
                     </div>
                 </main>
-                <!-- Added Chat Sidebar -->
             
             </div>
         `;
