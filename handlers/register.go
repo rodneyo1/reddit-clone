@@ -24,26 +24,29 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Nickname  string `json:"nickname"`
 		AvatarURL string `json:"avatar_url"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&newUser); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Invalid request body",
-		})
-		return
+		Age       int   `json:"age"`
+		Gender    string `json:"gender"`
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
 	}
 
-	// Validate input
-	if newUser.Email == "" || newUser.Username == "" || newUser.Password == "" {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "All fields are required",
-		})
-		return
-	}
+	if newUser.Email == "" ||
+    newUser.Username == "" ||
+    newUser.Password == "" ||
+    newUser.Nickname == "" ||
+    newUser.Age == 0 ||
+    newUser.Gender == "" ||
+    newUser.FirstName == "" ||
+    newUser.LastName == "" {
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "success": false,
+        "error":   "All fields are required",
+    })
+    return
+}
 
 	// Validate email format
 	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
@@ -62,6 +65,15 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Password must be at least 6 characters long",
+		})
+		return
+	}
+
+	if newUser.Age < 1 ||newUser.Age > 120 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Invalid Age",
 		})
 		return
 	}
@@ -116,8 +128,8 @@ newUser.AvatarURL = "https://robohash.org/" + userID
 
 // Create user
 _, err = db.Exec(
-	"INSERT INTO users (id, email, username, password, avatar_url) VALUES (?, ?, ?, ?, ?)",
-	userID, newUser.Email, newUser.Username, hashedPassword, newUser.AvatarURL,
+	"INSERT INTO users (id, email, username, password ,nickname ,first_name ,last_name, age , avatar_url) VALUES (?, ?, ?, ?, ?,?, ?, ?, ?)",
+	userID, newUser.Email, newUser.Username, hashedPassword,newUser.Nickname,newUser.FirstName, newUser.LastName, newUser.Age, newUser.AvatarURL,
 )
 if err != nil {
 	w.Header().Set("Content-Type", "application/json")
