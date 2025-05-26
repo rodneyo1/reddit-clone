@@ -4,6 +4,7 @@ window.addEventListener('hashchange', () => {
 });
 
 (async () => {
+    const isLoggedIn = await checkLoginStatus();
     if (isLoggedIn) {
         try {
             await initChat();
@@ -13,6 +14,12 @@ window.addEventListener('hashchange', () => {
             if (chatContainer) {
                 chatContainer.innerHTML = '<div class="error-message">Chat unavailable</div>';
             }
+        }
+    } else {
+        // hide chat sidebar
+        const chatContainer = document.getElementById('chat-sidebar');
+        if (chatContainer) {
+            chatContainer.style.display = 'none';
         }
     }
 })();
