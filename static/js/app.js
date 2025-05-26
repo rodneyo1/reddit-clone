@@ -110,6 +110,10 @@ if (logo) {
 
     // Attach create post button event listener
     if (isLoggedIn) {
+        const chatSidebar = document.getElementById('chat-sidebar');
+        if (chatSidebar){
+            chatSidebar.style.display = 'flex'; //show it after login
+        }
          setTimeout(initChat, 100);
         document.getElementById('create-post-btn')?.addEventListener('click', function(e) {
             e.preventDefault();
