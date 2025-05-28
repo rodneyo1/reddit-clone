@@ -204,7 +204,7 @@ if userID == "" {
 	var payload struct {
 		Nickname  string `json:"nickname"`
 		AvatarURL string `json:"avatar_url"`
-		Age       int   `json:"age"` // pointer to distinguish 0 from missing
+		Age       int   `json:"age"`
 		Gender    string `json:"gender"`
 		FirstName string `json:"first_name"`
 		LastName  string `json:"last_name"`

@@ -72,21 +72,50 @@ async function fetchRegisterContent() {
             </div>
 
             <!-- Traditional Registration Form -->
-            <form id="register-form" onsubmit="handleRegister(event)">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
-                <br>
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required>
-                <br>
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
-                <br>
-                <label for="confirm_password">Confirm Password:</label>
-                <input type="password" id="confirm_password" name="confirm_password" required>
-                <br>
-                <button type="submit">Register</button>
-            </form>
+           <form id="registerForm" onsubmit="handleRegister(event)">
+    <label for="email">Email:</label>
+    <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
+    <br>
+
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" required>
+    <br>
+
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required>
+    <br>
+
+    <label for="confirm_password">Confirm Password:</label>
+    <input type="password" id="confirm_password" name="confirm_password" required>
+    <br>
+
+    <label for="nickname">Nickname:</label>
+    <input type="text" id="nickname" name="nickname" required>
+    <br>
+
+    <label for="age">Age:</label>
+    <input type="number" id="age" name="age" min="1" required>
+    <br>
+
+    <label for="gender">Gender:</label>
+    <select id="gender" name="gender" required>
+        <option value="">Select...</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+    </select>
+    <br>
+
+    <label for="first_name">First Name:</label>
+    <input type="text" id="first_name" name="first_name" required>
+    <br>
+
+    <label for="last_name">Last Name:</label>
+    <input type="text" id="last_name" name="last_name" required>
+    <br>
+
+    <button type="submit">Register</button>
+</form>
             <p>Already have an account? <a href="#/login">Login here</a></p>
             <p class="home-link"><a href="#/">← Back to Homepage</a></p>
         </div>
@@ -139,6 +168,11 @@ async function handleRegister(event) {
                 email: formData.get('email'),
                 username: formData.get('username'),
                 password: password,
+                nickname: formData.get('nickname'),
+                age: Number(formData.get('age')),
+                gender: formData.get('gender'),
+                first_name: formData.get('first_name'),
+                last_name: formData.get('last_name'),
             }),
             headers: {
                 'Content-Type': 'application/json',
