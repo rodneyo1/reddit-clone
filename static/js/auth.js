@@ -15,6 +15,7 @@ async function fetchLoginContent() {
 
     return `
         <div class="auth-container">
+        <h2>Real-Time Forum</h2>
             <h1>Login</h1>
 
             <!-- Google Sign-In Button -->
@@ -167,6 +168,7 @@ async function handleLogout() {
         }
 
         localStorage.removeItem('authState');
+        window.location.hash = '/login';
         window.location.reload();
         
     } catch (error) {

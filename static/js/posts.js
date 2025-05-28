@@ -68,7 +68,6 @@ async function fetchHomeContent() {
                         }
                     </div>
                 </main>
-            
             </div>
         `;
     } catch (error) {
@@ -134,7 +133,6 @@ async function fetchFilteredContent(category) {
                         }
                     </div>
                 </main>
-                
             </div>
         `;
     } catch (error) {
