@@ -117,6 +117,14 @@ async function openChat(userId, username) {
     document.getElementById('chat-recipient').textContent = username;
     document.getElementById('chat-container').style.display = 'block';
     document.getElementById('messages-list').innerHTML = '<div class="loading">Loading messages...</div>';
+
+    const userEl = document.querySelector(`.chat-user[data-user-id="${userId}"]`);
+    if (userEl) {
+        const badge = userEl.querySelector('.unread-count');
+        if (badge) {
+            badge.remove();
+        }
+    }
     
     // Load initial messages
     await loadMessages();
@@ -276,6 +284,16 @@ function handleWebSocketMessage(data) {
         // loadChatUsers();
         return;
     }
+
+        // Handle notification messages (not full chat message)
+    if (data.type === 'new_message_notification') {
+        if (data.sender_id !== getCurrentUserId() && data.sender_id !== currentRecipient) {
+            playNotificationSound();
+            highlightUserInList(data.sender_id);
+        }
+        return;
+    }
+
     
     // Handle message
     const message = data;
@@ -302,7 +320,45 @@ function handleWebSocketMessage(data) {
     // Update user list and notifications
     updateUserLastMessage(message.sender_id, message.content);
     if (!isCurrentUser && message.sender_id !== currentRecipient) {
-        new Audio('/static/sounds/notification.mp3').play().catch(() => {});
+        playNotificationSound();
+        incrementUnreadCount(message.sender_id);
+        // new Audio('/static/sounds/notification.mp3').play().catch(() => {});
+    }
+}
+
+function incrementUnreadCount(userId) {
+    const userEl = document.querySelector(`.chat-user[data-user-id="${userId}"]`);
+    if (!userEl) return;
+
+    let badge = userEl.querySelector('.unread-count');
+    if (badge) {
+        let count = parseInt(badge.textContent || '0', 10);
+        count += 1;
+        badge.textContent = count;
+    } else {
+        badge = document.createElement('span');
+        badge.className = 'unread-count';
+        badge.textContent = '1';
+        userEl.appendChild(badge);
+    }
+}
+
+
+function playNotificationSound() {
+    new Audio('/static/sounds/notification.mp3').play().catch(() => {});
+}
+
+function highlightUserInList(userId) {
+    const userElem = document.querySelector(`#user-${userId}`);
+    if (userElem) {
+        userElem.classList.add('has-new-message');
+        // Optionally add a badge
+        const badge = userElem.querySelector('.unread-count');
+        if (badge) {
+            let count = parseInt(badge.textContent) || 0;
+            badge.textContent = count + 1;
+            badge.style.display = 'inline';
+        }
     }
 }
 
