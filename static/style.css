@@ -1375,6 +1375,21 @@ img {
     border-radius: 50%;
 }
 
+.has-new-message {
+    background-color: #f0f8ff; /* Light highlight */
+}
+.unread-count {
+  background-color: red;
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: auto;
+  min-width: 18px;
+  text-align: center;
+  display: inline-block;
+}
+
 
 /* .online-users {
     margin-top: 15px;
