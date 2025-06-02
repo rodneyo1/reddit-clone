@@ -26,8 +26,8 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	UserID string
-	Conn   *websocket.Conn
+	UserID  string
+	Conn    *websocket.Conn
 	writeMu sync.Mutex
 }
 
@@ -129,6 +129,64 @@ func handleIncomingMessages(client *Client) {
 		if msgType, ok := msgData["type"].(string); ok && msgType == "ping" {
 			client.Conn.WriteJSON(map[string]string{"type": "pong"})
 			continue
+		}
+
+		if msgType, ok := msgData["type"].(string); ok {
+			switch msgType {
+			case "typing":
+				recipientID, ok := msgData["recipient_id"].(string)
+				if !ok {
+					continue
+				}
+
+				var username string
+				err := db.QueryRow("SELECT username FROM users WHERE id = ?", client.UserID).Scan(&username)
+				if err != nil {
+					continue
+				}
+
+				typingStatus := TypingStatus{
+					Type:        "typing_status",
+					UserID:      client.UserID,
+					Username:    username,
+					IsTyping:    true,
+					RecipientID: recipientID,
+				}
+
+				// Send typing status to recipient
+				chatMutex.RLock()
+				if recipientClients, ok := clients[recipientID]; ok {
+					for _, c := range recipientClients {
+						c.writeMu.Lock()
+						c.Conn.WriteJSON(typingStatus)
+						c.writeMu.Unlock()
+					}
+				}
+				chatMutex.RUnlock()
+
+			case "stop_typing":
+				recipientID, ok := msgData["recipient_id"].(string)
+				if !ok {
+					continue
+				}
+
+				typingStatus := TypingStatus{
+					Type:        "typing_status",
+					UserID:      client.UserID,
+					IsTyping:    false,
+					RecipientID: recipientID,
+				}
+
+				chatMutex.RLock()
+				if recipientClients, ok := clients[recipientID]; ok {
+					for _, c := range recipientClients {
+						c.writeMu.Lock()
+						c.Conn.WriteJSON(typingStatus)
+						c.writeMu.Unlock()
+					}
+				}
+				chatMutex.RUnlock()
+			}
 		}
 
 		recipientID, ok1 := msgData["recipient_id"].(string)
@@ -456,10 +514,10 @@ func broadcastUserStatusToAll(userID string, isOnline bool) {
 				"timestamp": time.Now().Unix(),
 			}
 			go func(c *Client) {
-                c.writeMu.Lock()
-                defer c.writeMu.Unlock()
-                c.Conn.WriteJSON(status)
-            }(client)
+				c.writeMu.Lock()
+				defer c.writeMu.Unlock()
+				c.Conn.WriteJSON(status)
+			}(client)
 		}
 	}
 }
