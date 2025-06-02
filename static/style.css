@@ -225,8 +225,6 @@ header {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-
-
 .logo {
     flex-shrink: 0;
     margin-left: 20px;
@@ -840,103 +838,6 @@ img {
     }
 }
 
-/* Login with google styling */
-.oauth-divider {
-    margin: 20px 0;
-    text-align: center;
-    position: relative;
-}
-
-.oauth-divider::before,
-.oauth-divider::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    width: 45%;
-    height: 1px;
-    background-color: #ddd;
-}
-
-.oauth-divider::before {
-    left: 0;
-}
-
-.oauth-divider::after {
-    right: 0;
-}
-
-.oauth-divider span {
-    background: #fff;
-    padding: 0 10px;
-    color: #666;
-    font-size: 14px;
-}
-
-.google-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    color: #444;
-    width: 100%;
-    border-radius: 5px;
-    border: thin solid #888;
-    box-shadow: 1px 1px 1px grey;
-    white-space: nowrap;
-    padding: 12px 0;
-    margin-bottom: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.google-btn:hover {
-    background: #f8f8f8;
-}
-
-.google-btn img {
-    width: 20px;
-    height: 20px;
-    margin-right: 10px;
-}
-
-.google-btn span {
-    font-size: 16px;
-    font-weight: 500;
-}
-
-/* GitHub button styling */
-.github-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    color: #24292e;
-    width: 100%;
-    border-radius: 5px;
-    border: thin solid #888;
-    box-shadow: 1px 1px 1px grey;
-    white-space: nowrap;
-    padding: 12px 0;
-    margin-bottom: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.github-btn:hover {
-    background: #f8f8f8;
-}
-
-.github-btn img {
-    width: 20px;
-    height: 20px;
-    margin-right: 10px;
-}
-
-.github-btn span {
-    font-size: 16px;
-    font-weight: 500;
-}
-
 .main-container {
     display: flex;
     margin-top: 60px; /* Adjust based on header height */
@@ -978,7 +879,6 @@ img {
     color: #888;
     cursor: pointer;
 }
-
 
 .chat-sidebar {
      width: 300px;
@@ -1044,7 +944,6 @@ img {
     background-color: #ececec;
 }
 
-
 .user-avatar {
     position: relative;
     display: inline-block;
@@ -1088,8 +987,6 @@ img {
     text-align: center;
     margin-top: 20px;
 }
-
-
 
 .online-dot{
      width: 8px;
@@ -1231,7 +1128,6 @@ img {
     margin-left: auto;
 } */
 
-
 .message.sent {
     align-self: flex-end;
     background-color: #dcf8c6;
@@ -1308,7 +1204,6 @@ img {
     align-items: center;
     margin-bottom: 5px;
 }
-
 
 .sender {
     font-weight: bold;
@@ -1390,7 +1285,6 @@ img {
   text-align: center;
   display: inline-block;
 }
-
 
 /* .online-users {
     margin-top: 15px;

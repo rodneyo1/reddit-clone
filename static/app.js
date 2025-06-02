@@ -542,23 +542,6 @@ async function fetchLoginContent() {
     return `
         <div class="auth-container">
             <h1>Login</h1>
-
-            <!-- Google Sign-In Button -->
-            <a href="/auth/google/login" class="google-btn">
-                <img src="/src/google.jpeg" alt="Google Logo">
-                <span>Sign in with Google</span>
-            </a>
-
-            <!-- GitHub Sign-In Button -->
-            <a href="/auth/github/login" class="github-btn">
-                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo">
-                <span>Sign in with GitHub</span>
-            </a>
-
-            <div class="oauth-divider">
-                <span>or</span>
-            </div>
-
             <!-- Traditional Login Form -->
             <form id="login-form" onsubmit="handleLogin(event)">
                 <label for="email">Email:</label>
@@ -628,23 +611,6 @@ async function fetchRegisterContent() {
     return `
         <div class="auth-container">
             <h1>Register</h1>
-
-            <!-- Google Sign-In Button -->
-            <a href="/auth/google/login" class="google-btn">
-                <img src="/src/google.jpeg" alt="Google Logo">
-                <span>Sign up with Google</span>
-            </a>
-
-            <!-- GitHub Sign-In Button -->
-            <a href="/auth/github/login" class="github-btn">
-                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo">
-                <span>Sign up with GitHub</span>
-            </a>
-
-            <div class="oauth-divider">
-                <span>or</span>
-            </div>
-
             <!-- Traditional Registration Form -->
             <form id="register-form" onsubmit="handleRegister(event)">
                 <label for="email">Email:</label>
