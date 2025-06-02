@@ -1102,8 +1102,9 @@ img {
 }
 
 .user-status {
-    font-size: 0.8em;
-    color: #666;
+    display: flex;
+    flex-direction: column;
+    font-size: 0.9em;
 }
 
 .user-status.online::before {
@@ -1412,3 +1413,52 @@ img {
         height: calc(100% - 150px);
     }
 } */
+
+/* Typing indicator styles */
+.typing-indicator {
+    color: #25d7ae;
+    font-style: italic;
+    font-size: 0.85em;
+    display: none;
+}
+
+.typing-dots {
+    display: inline-block;
+    animation: typingDots 1.5s infinite;
+    width: 20px;
+}
+
+@keyframes typingDots {
+    0% { content: '.'; }
+    33% { content: '..'; }
+    66% { content: '...'; }
+}
+
+.last-message {
+    color: #666;
+    font-size: 0.9em;
+    margin-top: 2px;
+}
+
+.chat-typing-indicator {
+    padding: 8px 15px;
+    color: #25d7ae;
+    font-style: italic;
+    font-size: 0.9em;
+    display: none;
+    margin: 5px 0;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.chat-typing-indicator::after {
+    content: '';
+    animation: typingDots 1.5s infinite;
+    width: 20px;
+    display: inline-block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
