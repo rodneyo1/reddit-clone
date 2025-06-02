@@ -18,8 +18,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var credentials struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Identifier string `json:"identifier"`
+		Password   string `json:"password"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
@@ -27,8 +27,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if credentials.Email == "" || credentials.Password == "" {
-		respondWithError(w, "Email and password are required", http.StatusBadRequest)
+	if credentials.Identifier == "" || credentials.Password == "" {
+		respondWithError(w, "Identifier and password are required", http.StatusBadRequest)
 		return
 	}
 
@@ -40,17 +40,18 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	// Get user with username
+	// Get user with email or nickname
 	var user User
 	var hashedPassword string
 	err = tx.QueryRow(`
         SELECT id, email, username, password 
         FROM users 
-        WHERE email = ?`, credentials.Email).Scan(
+        WHERE email = ? OR nickname = ?`,
+		credentials.Identifier, credentials.Identifier).Scan(
 		&user.ID, &user.Email, &user.Username, &hashedPassword)
 
 	if err == sql.ErrNoRows {
-		respondWithError(w, "Invalid email or password", http.StatusUnauthorized)
+		respondWithError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	} else if err != nil {
 		log.Printf("Database error: %v", err)
@@ -59,7 +60,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(credentials.Password)); err != nil {
-		respondWithError(w, "Invalid email or password", http.StatusUnauthorized)
+		respondWithError(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
