@@ -19,8 +19,8 @@ async function fetchLoginContent() {
             <h1>Login</h1>
             <!-- Traditional Login Form -->
             <form id="login-form" onsubmit="handleLogin(event)">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
+                <label for="identifier">Email or Nickname:</label>
+                <input type="text" id="identifier" name="identifier" placeholder="Enter email or nickname" required>
                 <br>
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
@@ -96,7 +96,7 @@ async function handleLogin(event) {
         const response = await fetch('/api/login', {
             method: 'POST',
             body: JSON.stringify({
-                email: formData.get('email'),
+                identifier: formData.get('identifier'),
                 password: formData.get('password'),
             }),
             headers: {
