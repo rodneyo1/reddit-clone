@@ -18,6 +18,14 @@ type User struct {
     LastName  string
 }
 
+type TypingStatus struct {
+    Type       string `json:"type"`
+    UserID     string `json:"user_id"`
+    Username   string `json:"username"`
+    IsTyping   bool   `json:"is_typing"`
+    RecipientID string `json:"recipient_id"`
+}
+
 type Message struct {
 	ID             int       `json:"id"`
 	TempID         string    `json:"temp_id,omitempty"`
