@@ -4,6 +4,10 @@ let messageOffset = 0;
 let isLoadingMessages = false;
 let hasMoreMessages = true;
 const renderedMessages = new Set();
+let typingTimeout = null;
+let typingUsers = new Map();
+let lastTypingTime = 0;
+const TYPING_TIMER_LENGTH = 3000; // How long to wait after last keystroke
 
 // Initialize chat functionality
 function initChat() {
@@ -27,6 +31,7 @@ function connectWebSocket() {
 
     chatSocket.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        console.log('WebSocket message received:', data); // Debug log
         handleWebSocketMessage(data);
     };
 
@@ -90,15 +95,19 @@ function renderChatUsers(users = []) {
             </div>
             <div class="user-info">
                 <span class="username">${user.username}</span>
-                ${user.last_message ? 
-                    `<span class="last-message">${user.last_message.substring(0,30)}</span>` : 
-                    '<span class="last-message">No messages yet</span>'}
+                <div class="user-status">
+                    <span class="last-message">${user.last_message ? 
+                        user.last_message.substring(0,30) : 'No messages yet'}</span>
+                    <div class="typing-indicator" data-user-id="${user.id}" style="display: none;">
+                        is typing<span class="typing-dots">...</span>
+                    </div>
+                </div>
             </div>
             ${user.unread_count > 0 ? `<span class="unread-count">${user.unread_count}</span>` : ''}
         </div>
     `).join('');
 
-    // Add event listeners properly
+    // Add event listeners
     document.querySelectorAll('.chat-user').forEach(userEl => {
         userEl.addEventListener('click', () => {
             const userId = userEl.dataset.userId;
@@ -107,11 +116,18 @@ function renderChatUsers(users = []) {
         });
     });
 }
+
 // Open chat with a specific user
 async function openChat(userId, username) {
     currentRecipient = userId;
     messageOffset = 0;
     hasMoreMessages = true;
+    
+    // Reset typing indicators
+    const chatTypingIndicator = document.getElementById('chat-typing-indicator');
+    if (chatTypingIndicator) {
+        chatTypingIndicator.style.display = 'none';
+    }
     
     // Update UI
     document.getElementById('chat-recipient').textContent = username;
@@ -260,6 +276,17 @@ function sendMessage() {
     // messagesList.insertAdjacentHTML('beforeend', createMessageElement(tempMessage));
     // messagesList.scrollTop = messagesList.scrollHeight;
     
+    // Clear typing status when sending message
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+    }
+    chatSocket.send(JSON.stringify({
+        type: 'stop_typing',
+        recipient_id: currentRecipient
+    }));
+    typingUsers.clear();
+    updateTypingIndicator();
+    
     // Send via WebSocket
     chatSocket.send(JSON.stringify({
         recipient_id: currentRecipient,
@@ -273,6 +300,8 @@ function sendMessage() {
 // Handle WebSocket messages
 // Update handleWebSocketMessage
 function handleWebSocketMessage(data) {
+    console.log('Received WebSocket message:', data); // Add debug logging
+
     const messageId = data.temp_id || data.id;
 
     if (renderedMessages.has(messageId)) {
@@ -281,6 +310,7 @@ function handleWebSocketMessage(data) {
     
     if (data.type === 'status_update') {
         updateUserStatus(data.user_id, data.is_online);
+        handleTypingStatus(data);
         // loadChatUsers();
         return;
     }
@@ -294,6 +324,11 @@ function handleWebSocketMessage(data) {
         return;
     }
 
+    if (data.type === 'typing_status') {
+        console.log('Received typing status:', data); // Add debug logging
+        handleTypingStatus(data);
+        return;
+    }
     
     // Handle message
     const message = data;
@@ -416,12 +451,16 @@ function setupEventListeners() {
     
     const messageInput = document.getElementById('message-input');
     if (messageInput) {
+        console.log('Setting up message input listeners'); // Add debug logging
+        messageInput.addEventListener('input', handleTyping);
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
+    } else {
+        console.log('Message input not found'); // Add debug logging
     }
 }
 
@@ -466,3 +505,103 @@ window.initChat = initChat;
 window.openChat = openChat;
 window.sendMessage = sendMessage;
 window.closeChat = closeChat;
+
+// Add this function to handle typing events
+function handleTyping() {
+    if (!currentRecipient || !chatSocket) return;
+
+    const now = Date.now();
+
+    // Only send typing event if it's been more than 1 second since last keystroke
+    if (now - lastTypingTime > 1000) {
+        lastTypingTime = now;
+        
+        console.log('Sending typing status...'); // Debug log
+        chatSocket.send(JSON.stringify({
+            type: 'typing',
+            recipient_id: currentRecipient
+        }));
+    }
+
+    // Clear existing timeout
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+    }
+
+    // Set new timeout
+    typingTimeout = setTimeout(() => {
+        console.log('Sending stop typing status...'); // Debug log
+        chatSocket.send(JSON.stringify({
+            type: 'stop_typing',
+            recipient_id: currentRecipient
+        }));
+    }, TYPING_TIMER_LENGTH);
+}
+
+// Add this new function to handle typing status updates
+function handleTypingStatus(data) {
+    console.log('Handling typing status:', data);
+
+    // Update typing indicator in user list
+    const userTypingIndicator = document.querySelector(`.typing-indicator[data-user-id="${data.user_id}"]`);
+    if (userTypingIndicator) {
+        const userInfo = userTypingIndicator.closest('.user-info');
+        if (userInfo) {
+            const lastMessage = userInfo.querySelector('.last-message');
+            if (lastMessage) {
+                lastMessage.style.display = data.is_typing ? 'none' : 'block';
+            }
+            userTypingIndicator.style.display = data.is_typing ? 'block' : 'none';
+        }
+    }
+
+    // Update typing indicator in active chat
+    const chatTypingIndicator = document.getElementById('chat-typing-indicator');
+    if (chatTypingIndicator && data.user_id === currentRecipient) {
+        if (data.is_typing) {
+            chatTypingIndicator.style.display = 'block';
+            chatTypingIndicator.textContent = `${data.username || 'Someone'} is typing`;
+            
+            // Scroll to show typing indicator if near bottom
+            const messagesList = document.getElementById('messages-list');
+            if (messagesList) {
+                const isNearBottom = messagesList.scrollHeight - messagesList.scrollTop - messagesList.clientHeight < 100;
+                if (isNearBottom) {
+                    messagesList.scrollTop = messagesList.scrollHeight;
+                }
+            }
+        } else {
+            chatTypingIndicator.style.display = 'none';
+        }
+    }
+}
+
+// Add this function to update the typing indicator display
+function updateTypingIndicator() {
+    const typingIndicator = document.getElementById('typing-indicator');
+    if (!typingIndicator) return;
+
+    // Clean up old typing statuses (older than 3 seconds)
+    const now = Date.now();
+    for (const [userId, data] of typingUsers.entries()) {
+        if (now - data.timestamp > 3000) {
+            typingUsers.delete(userId);
+        }
+    }
+
+    if (typingUsers.size === 0) {
+        typingIndicator.style.display = 'none';
+        return;
+    }
+
+    const typingUsernames = Array.from(typingUsers.values())
+        .map(data => data.username)
+        .join(', ');
+
+    console.log('Updating typing indicator:', typingUsernames); // Add debug logging
+
+    typingIndicator.style.display = 'block';
+    typingIndicator.textContent = typingUsers.size === 1 
+        ? `${typingUsernames} is typing...`
+        : `${typingUsernames} are typing...`;
+}
