@@ -233,12 +233,12 @@ function toggleCreatePost() {
                 
                 <div class="form-group">
                     <label>Categories (select at least one):</label>
-                    <div class="categories-grid">
+                    <div class="checkbox-group">
                         ${validCategories.map(cat => `
-                            <div class="category-option">
-                                <input type="checkbox" id="cat-${cat}" name="category" value="${cat}">
-                                <label for="cat-${cat}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</label>
-                            </div>
+                            <label>
+                                <input type="checkbox" name="category" value="${cat}">
+                                ${cat.charAt(0).toUpperCase() + cat.slice(1)}
+                            </label>
                         `).join('')}
                     </div>
                 </div>
