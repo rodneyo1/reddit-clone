@@ -48,8 +48,8 @@ func main() {
 	go handlers.StartChatManager()
 
 	// Start the server
-	log.Println("Server is running on http://localhost:8081")
-	err := http.ListenAndServe(":8081", nil)
+	log.Println("Server is running on http://localhost:8080")
+	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Fatal(err)
 	}

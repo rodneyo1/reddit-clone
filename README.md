@@ -1,89 +1,97 @@
-# Real-Time-Forum Project-Authentication
+# Real-Time Forum
 
-## Project Overview
-This project is designed to create a real-time-forum that allows users to communicate by creating posts and comments. Users will be able to send private messages to each other.
+A real-time forum built with Go, SQLite, and vanilla JavaScript. It features user registration, login, post creation, commenting, and private messaging — all in a single-page application (SPA) experience.
 
 
 ## Features
-- **User Authentication**: Secure access with user login and registration.
-  - **Registration**: Users can register by providing a unique email, username, and password. Passwords are encrypted before storage.
-  - **Login**: Users can log in to access the forum. Sessions are managed using cookies with an expiration date.
-  - **Session Management**: Each user can have only one active session at a time.
-  - **Private Messages**: Users can be able to send private messages to each other.
 
-- **Post Management**: Create and view post(s), .
-- **Comments**: Registered users can comment on posts, fostering discussion.
-- **Likes and Dislikes**: Registered users can like or dislike posts and comments. The number of likes and dislikes is visible to all users.
-- **Filtering**: Users can filter posts by categories, created posts, and liked posts.
+### User Authentication
+- Registration with:
+  - Nickname, Age, Gender, First Name, Last Name, Email, Password
+- Login using Email or Nickname + Password
+- Secure password hashing with `bcrypt`
+- Session handling via cookies (1 session per user)
 
-## Technologies Used
+### Posts and Comments
+- Create and view posts
+- Posts have categories
+- Comment on posts
+- Feed-based display with filters
 
-- **Backend**: Go (Golang)
-- **Database**: SQLite
-- **Frontend**: HTML, CSS, JavaScript (no frameworks or libraries)
-- **Containerization**: Docker
-- **Password Encryption**: bcrypt (Bonus)
-- **Session Management**: UUID (Bonus)
+### Private Messaging (Real-Time Chat)
+- WebSocket-powered private chat
+- User list showing online/offline status
+- Chat sorted by last message or alphabetically
+- Scroll to load more messages (pagination with throttling)
+- Real-time updates: no page reload needed
+- Message format includes sender, timestamp, and content
 
----
+
+## Tech Stack
+
+| Layer        | Tech             |
+|--------------|------------------|
+| **Frontend** | HTML, CSS, JavaScript (No frameworks) |
+| **Backend**  | Golang + Gorilla WebSocket |
+| **Database** | SQLite           |
+| **Auth**     | bcrypt, UUID     |
+| **SPA**      | Hash-based routing in JS |
+| **Container**| Docker           |
+
+
 ## Setup Instructions
 
 ### Prerequisites
-- Docker installed on your machine.
-- Basic knowledge of Go and SQL.
+- [Go](https://golang.org/dl/)
+- SQLite installed locally (or bundled via Go)
+- Basic knowledge of HTTP, SQL, and WebSockets
 
-### Steps to Run the Project
-To install this project, follow these steps:
-1. Clone the repository: 
-   ```bash
-   git clone https://learn.zone01kisumu.ke/git/rodnochieng/real-time-forum.git
-2. Navigate to the project directory:
-   ```bash
-   cd forum
-   ```
-3. Install the required dependencies:
-   ```bash
-   go get ./...
-   ```
 
-## Usage
-To run the project with docker, use the following command:
-1. Make it executable with this command
+### Local Run (Without Docker)
+
 ```bash
-chmod +x script.sh
-```
-2. Run with this command
-```bash
-./script.sh
-```
+# Install dependencies
+go get ./...
 
-## Usage without docker
-- Run with
-``` go
+# Run the app
 go run .
-```
 
-## Testing & Troubleshooting
-To run tests, use:
+
+##  Testing & Debugging
+
+Run tests with:
+
 ```bash
 go test ./...
 ```
-Common issues:
-- **Port Conflict**: If you see a "port already in use" error, check for other applications using port 8080.
-- **Database Issues**: Verify your database configuration if you encounter connection problems.
 
-## Contributing
-We welcome contributions! Please follow these guidelines:
-1. Fork the repository.
-2. Create a new branch for your feature or bug fix.
-3. Submit a pull request with a clear description of your changes.
+### Common Issues
 
-
-## Authors
-- rodnochieng - [GitHub Profile](https://github.com/rodnochieng)
-- hanapiko - [GitHub Profile](https://github.com/hanapiko)
-
+| Problem                  | Solution                                            |
+| ------------------------ | --------------------------------------------------- |
+| Port already in use      | Kill process using port 8080 or change it in config |
+| Login not persisting     | Ensure cookies are being sent correctly             |
+| WebSocket not connecting | Confirm backend is listening at correct endpoint    |
 
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+
+This project is licensed under the MIT License.
+
+
+## Authors
+
+* **Rodney Otieno** – [@rodneyo1](https://github.com/rodneyo1)
+* **hanapiko** – [@hanapiko](https://github.com/hanapiko)
+
+
+## Contributions
+
+We welcome contributions! Follow these steps:
+
+1. Fork the repo
+2. Create a branch: `git checkout -b feature/chat`
+3. Commit: `git commit -am 'Add chat feature'`
+4. Push: `git push origin feature/chat`
+5. Submit a pull request
+

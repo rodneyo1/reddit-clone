@@ -32,7 +32,7 @@ COPY --from=builder /app/templates /app/templates
 COPY --from=builder /app/static /app/static
 
 # Expose the application port
-EXPOSE 8081
+EXPOSE 8080
 
 # Run the application
 CMD ["./forum"]

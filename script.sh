@@ -3,7 +3,7 @@
 # Variables
 IMAGE_NAME="forum-app"
 CONTAINER_NAME="forum-container"
-PORT=8081
+PORT=8080
 
 # Google OAuth credentials
 # To get these credentials:
@@ -12,7 +12,7 @@ PORT=8081
 # 3. Enable the Google+ API and OAuth consent screen
 # 4. Go to Credentials
 # 5. Create OAuth 2.0 Client ID
-# 6. Add redirect URI: http://localhost:8081/auth/google/callback
+# 6. Add redirect URI: http://localhost:8080/auth/google/callback
 # 7. Replace the placeholders below with your actual credentials
 GOOGLE_CLIENT_ID="1082051974368-4vrk6abov8eeubo0vrmlrutlho0iupvv.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="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"
@@ -40,7 +40,7 @@ export GITHUB_CLIENT_SECRET
 # # Run the Docker container
 # docker run -d \
 #     --name $CONTAINER_NAME \
-#     -p $PORT:8081 \
+#     -p $PORT:8080 \
 #     -e GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID \
 #     -e GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET \
 #     $IMAGE_NAME && \
