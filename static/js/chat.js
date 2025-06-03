@@ -145,6 +145,14 @@ async function openChat(userId, username) {
     // Load initial messages
     await loadMessages();
     
+     // Mark messages as read via WebSocket
+     if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+        chatSocket.send(JSON.stringify({
+            type: 'mark_read',
+            sender_id: userId  // The sender whose messages we're marking as read
+        }));
+    }
+
     // Scroll to bottom
     setTimeout(() => {
         const messagesList = document.getElementById('messages-list');
@@ -308,6 +316,17 @@ function handleWebSocketMessage(data) {
         return;
     }
     
+    if (data.type === 'messages_read') {
+        // If we're the sender and our messages were read by the recipient
+        if (data.recipient_id === currentRecipient) {
+            // Update UI to show messages as read
+            document.querySelectorAll('.message.sent').forEach(msg => {
+                msg.classList.add('read');
+            });
+        }
+        return;
+    }
+
     if (data.type === 'status_update') {
         updateUserStatus(data.user_id, data.is_online);
         handleTypingStatus(data);
