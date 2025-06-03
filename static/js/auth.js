@@ -39,22 +39,6 @@ async function fetchRegisterContent() {
             <h1>Register</h1>
             <!-- Traditional Registration Form -->
            <form id="registerForm" onsubmit="handleRegister(event)">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
-                <br>
-
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required>
-                <br>
-
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
-                <br>
-
-                <label for="confirm_password">Confirm Password:</label>
-                <input type="password" id="confirm_password" name="confirm_password" required>
-                <br>
-
                 <label for="nickname">Nickname:</label>
                 <input type="text" id="nickname" name="nickname" required>
                 <br>
@@ -78,6 +62,22 @@ async function fetchRegisterContent() {
 
                 <label for="last_name">Last Name:</label>
                 <input type="text" id="last_name" name="last_name" required>
+                <br>
+
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
+                <br>
+
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+                <br>
+
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+                <br>
+
+                <label for="confirm_password">Confirm Password:</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
                 <br>
 
                 <button type="submit">Register</button>
