@@ -164,6 +164,37 @@ func handleIncomingMessages(client *Client) {
 				}
 				chatMutex.RUnlock()
 
+			case "mark_read":
+				senderID, ok := msgData["sender_id"].(string)
+				if !ok {
+					continue
+				}
+			
+				// Update messages as read in database
+				_, err := db.Exec(`
+					UPDATE messages 
+					SET is_read = TRUE 
+					WHERE sender_id = ? AND recipient_id = ? AND is_read = FALSE`,
+					senderID, client.UserID)
+				if err != nil {
+					log.Printf("Error marking messages as read: %v", err)
+					continue
+				}
+			
+				// Notify the sender that their messages were read
+				chatMutex.RLock()
+				if senderClients, ok := clients[senderID]; ok {
+					for _, c := range senderClients {
+						c.writeMu.Lock()
+						c.Conn.WriteJSON(map[string]interface{}{
+							"type":         "messages_read",
+							"recipient_id": client.UserID, // Who read the messages
+						})
+						c.writeMu.Unlock()
+					}
+				}
+				chatMutex.RUnlock()
+
 			case "stop_typing":
 				recipientID, ok := msgData["recipient_id"].(string)
 				if !ok {
