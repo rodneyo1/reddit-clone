@@ -1469,3 +1469,110 @@ img {
     to { opacity: 1; }
 }
 
+/* Gender Selection Styles */
+.gender-group {
+    margin: 15px 0;
+}
+
+.gender-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+}
+
+.gender-options {
+    display: flex;
+    gap: 20px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.gender-option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: #f5f5f5;
+    transition: all 0.3s ease;
+}
+
+.gender-option:hover {
+    background: #e9ecef;
+}
+
+.gender-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.radio-custom {
+    position: relative;
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    border: 2px solid #4A7C8C;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.radio-custom::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #4A7C8C;
+    transition: all 0.2s ease;
+}
+
+.gender-option input[type="radio"]:checked + .radio-custom::after {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.gender-option input[type="radio"]:checked + .radio-custom {
+    border-color: #4A7C8C;
+    background: #fff;
+}
+
+.gender-option input[type="radio"]:checked + .radio-custom + i {
+    color: #4A7C8C;
+}
+
+.gender-option input[type="radio"]:checked + .radio-custom + i + span {
+    color: #4A7C8C;
+}
+
+.gender-option i {
+    margin-right: 8px;
+    font-size: 16px;
+    color: #6c757d;
+    transition: color 0.3s ease;
+}
+
+.gender-option:hover i {
+    color: #4A7C8C;
+}
+
+/* Add some animation when selecting */
+.gender-option input[type="radio"]:checked + .radio-custom {
+    transform: scale(1.1);
+}
+
+@media (max-width: 480px) {
+    .gender-options {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .gender-option {
+        width: 100%;
+    }
+}
+
