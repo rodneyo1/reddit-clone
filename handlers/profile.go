@@ -3,7 +3,6 @@ package handlers
 import (
 	// "html/template"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -170,7 +169,6 @@ func ProfileHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, "Error encoding JSON", http.StatusInternalServerError)
 	}
-	fmt.Println(data)
 	// tmpl, err := template.ParseFiles("templates/profile.html")
 	// if err != nil {
 	// 	log.Printf("Error parsing profile template: %v", err)
@@ -195,16 +193,15 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID := GetUserIdFromSession(w, r)
-if userID == "" {
-	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	return
-}
-
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	var payload struct {
 		Nickname  string `json:"nickname"`
 		AvatarURL string `json:"avatar_url"`
-		Age       int   `json:"age"`
+		Age       int    `json:"age"`
 		Gender    string `json:"gender"`
 		FirstName string `json:"first_name"`
 		LastName  string `json:"last_name"`
@@ -214,7 +211,6 @@ if userID == "" {
 		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 		return
 	}
-	fmt.Println(payload)
 
 	query := `UPDATE users SET 
 		nickname = COALESCE(NULLIF(?, ''), nickname),

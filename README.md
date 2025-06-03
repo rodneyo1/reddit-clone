@@ -8,8 +8,6 @@ This project is designed to create a real-time-forum that allows users to commun
 - **User Authentication**: Secure access with user login and registration.
   - **Registration**: Users can register by providing a unique email, username, and password. Passwords are encrypted before storage.
   - **Login**: Users can log in to access the forum. Sessions are managed using cookies with an expiration date.
-  - **Google OAuth**: Users can log in using their Google accounts.
-  - **GitHub OAuth**: Users can log in using their GitHub accounts.
   - **Session Management**: Each user can have only one active session at a time.
   - **Private Messages**: Users can be able to send private messages to each other.
 
@@ -58,22 +56,6 @@ chmod +x script.sh
 ```bash
 ./script.sh
 ```
-- Before running the script, you need to set the Google OAuth and GitHub OAuth credentials as environment variables.
-- For Google OAuth:
-  - Go to https://console.cloud.google.com/
-  - Create a new project or select an existing one
-  - Enable the Google+ API and OAuth consent screen
-  - Go to Credentials
-  - Create OAuth 2.0 Client ID
-  - Add redirect URI: http://localhost:8081/auth/google/callback
-  - Set the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.
-- For GitHub OAuth:
-  - Go to https://github.com/settings/developers
-  - Register a new application
-  - Add Homepage URL: http://localhost:8081
-  - Add Authorization callback URL: http://localhost:8081/auth/github/callback
-  - Set the GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET environment variables.
-- This script will stop and remove any existing container, build the Docker image, and run the container, making it accessible on port 8080.
 
 ## Usage without docker
 - Run with

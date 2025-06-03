@@ -3,8 +3,10 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -24,8 +26,9 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-	UserID string
-	Conn   *websocket.Conn
+	UserID  string
+	Conn    *websocket.Conn
+	writeMu sync.Mutex
 }
 
 var (
@@ -34,8 +37,6 @@ var (
 	register   = make(chan *Client)
 	unregister = make(chan *Client)
 )
-
-
 
 func ChatWebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -59,27 +60,9 @@ func ChatWebsocketHandler(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 		return
 	}
-	
-
-	// Close existing connections
-	chatMutex.Lock()
-	if existing, ok := clients[userID]; ok {
-		for _, c := range existing {
-			c.Conn.Close()
-		}
-	}
-	chatMutex.Unlock()
 
 	client := &Client{UserID: userID, Conn: conn}
 	register <- client
-
-	_, err = db.Exec(`
-		INSERT OR REPLACE INTO user_status (user_id, is_online, last_seen)
-		VALUES (?, TRUE, ?)`,
-		userID, time.Now())
-	if err != nil {
-		log.Printf("Status update error: %v", err)
-	}
 
 	go handleIncomingMessages(client)
 }
@@ -88,27 +71,43 @@ func handleIncomingMessages(client *Client) {
 	defer func() {
 		unregister <- client
 		client.Conn.Close()
-		updateUserStatus(client.UserID, false)
 	}()
 
-
+	// Improved close handler
 	client.Conn.SetCloseHandler(func(code int, text string) error {
-        log.Printf("Connection closing: %d %s", code, text)
-        return nil
-    })
-
-	client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-	client.Conn.SetPongHandler(func(string) error {
-		client.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		message := websocket.FormatCloseMessage(code, "")
+		client.Conn.WriteControl(websocket.CloseMessage, message, time.Now().Add(time.Second))
 		return nil
 	})
 
+	// Better ping/pong handling
+	client.Conn.SetPingHandler(func(appData string) error {
+		err := client.Conn.WriteControl(websocket.PongMessage, []byte(appData), time.Now().Add(time.Second))
+		if err == websocket.ErrCloseSent {
+			return nil
+		} else if e, ok := err.(net.Error); ok && e.Timeout() {
+			return nil
+		}
+		return err
+	})
+
+	client.Conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+	client.Conn.SetPongHandler(func(string) error {
+		client.Conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+		return nil
+	})
+
+	// Heartbeat ticker
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	go func() {
 		for range ticker.C {
-			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			if err := client.Conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(time.Second)); err != nil {
+				if errors.Is(err, websocket.ErrCloseSent) {
+					return
+				}
+				log.Printf("Ping error: %v", err)
 				return
 			}
 		}
@@ -117,7 +116,11 @@ func handleIncomingMessages(client *Client) {
 	for {
 		var msgData map[string]interface{}
 		if err := client.Conn.ReadJSON(&msgData); err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			if websocket.IsUnexpectedCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+				websocket.CloseNormalClosure,
+				websocket.CloseNoStatusReceived) {
 				log.Printf("WebSocket error: %v", err)
 			}
 			break
@@ -126,6 +129,64 @@ func handleIncomingMessages(client *Client) {
 		if msgType, ok := msgData["type"].(string); ok && msgType == "ping" {
 			client.Conn.WriteJSON(map[string]string{"type": "pong"})
 			continue
+		}
+
+		if msgType, ok := msgData["type"].(string); ok {
+			switch msgType {
+			case "typing":
+				recipientID, ok := msgData["recipient_id"].(string)
+				if !ok {
+					continue
+				}
+
+				var username string
+				err := db.QueryRow("SELECT username FROM users WHERE id = ?", client.UserID).Scan(&username)
+				if err != nil {
+					continue
+				}
+
+				typingStatus := TypingStatus{
+					Type:        "typing_status",
+					UserID:      client.UserID,
+					Username:    username,
+					IsTyping:    true,
+					RecipientID: recipientID,
+				}
+
+				// Send typing status to recipient
+				chatMutex.RLock()
+				if recipientClients, ok := clients[recipientID]; ok {
+					for _, c := range recipientClients {
+						c.writeMu.Lock()
+						c.Conn.WriteJSON(typingStatus)
+						c.writeMu.Unlock()
+					}
+				}
+				chatMutex.RUnlock()
+
+			case "stop_typing":
+				recipientID, ok := msgData["recipient_id"].(string)
+				if !ok {
+					continue
+				}
+
+				typingStatus := TypingStatus{
+					Type:        "typing_status",
+					UserID:      client.UserID,
+					IsTyping:    false,
+					RecipientID: recipientID,
+				}
+
+				chatMutex.RLock()
+				if recipientClients, ok := clients[recipientID]; ok {
+					for _, c := range recipientClients {
+						c.writeMu.Lock()
+						c.Conn.WriteJSON(typingStatus)
+						c.writeMu.Unlock()
+					}
+				}
+				chatMutex.RUnlock()
+			}
 		}
 
 		recipientID, ok1 := msgData["recipient_id"].(string)
@@ -203,7 +264,9 @@ func ChatUsersHandler(w http.ResponseWriter, r *http.Request) {
 			), datetime('now')) as last_message_time,
 			COALESCE((
 				SELECT COUNT(*) FROM messages m 
-				WHERE m.sender_id = u.id AND m.recipient_id = ?
+				WHERE m.sender_id = u.id 
+				AND m.recipient_id = ? 
+				AND m.is_read = FALSE
 			), 0) as unread_count
 		FROM users u
 		LEFT JOIN user_status us ON u.id = us.user_id
@@ -364,87 +427,102 @@ func StartChatManager() {
 		select {
 		case client := <-register:
 			chatMutex.Lock()
-			if existing, ok := clients[client.UserID]; ok {
-				for _, c := range existing {
-					c.Conn.Close()
-				}
+			clients[client.UserID] = append(clients[client.UserID], client)
+
+			// Only update status if first connection
+			if len(clients[client.UserID]) == 1 {
+				updateUserStatus(client.UserID, true)
+				go broadcastUserStatusToAll(client.UserID, true)
 			}
-			clients[client.UserID] = []*Client{client}
 			chatMutex.Unlock()
-			broadcastUserStatus(client.UserID, true)
 
 		case client := <-unregister:
 			chatMutex.Lock()
 			if userClients, ok := clients[client.UserID]; ok {
+				// Find and remove client
 				for i, c := range userClients {
 					if c == client {
 						clients[client.UserID] = append(userClients[:i], userClients[i+1:]...)
 						break
 					}
 				}
+
+				// Update status only when last connection closes
 				if len(clients[client.UserID]) == 0 {
 					delete(clients, client.UserID)
-					go broadcastUserStatus(client.UserID, false)
+					updateUserStatus(client.UserID, false)
+					go broadcastUserStatusToAll(client.UserID, false)
 				}
 			}
 			chatMutex.Unlock()
 
 		case msg := <-broadcast:
 			chatMutex.RLock()
-			defer chatMutex.RUnlock()
-
+			// Send to sender
 			if senderClients, ok := clients[msg.SenderID]; ok {
-				for _, client := range senderClients {
-					senderMsg := msg
-					senderMsg.IsOwner = true
-					client.Conn.WriteJSON(senderMsg)
+				for _, c := range senderClients {
+					go func(client *Client) {
+						client.writeMu.Lock()
+						defer client.writeMu.Unlock()
+						sendMsg := msg
+						sendMsg.IsOwner = true
+						client.Conn.WriteJSON(sendMsg)
+					}(c)
 				}
 			}
 
+			// Send to recipient
 			if recipientClients, ok := clients[msg.RecipientID]; ok {
-				for _, client := range recipientClients {
-					senderMsg := msg
-					senderMsg.IsOwner = false
-					client.Conn.WriteJSON(senderMsg)
+				for _, c := range recipientClients {
+					go func(client *Client) {
+						client.writeMu.Lock()
+						defer client.writeMu.Unlock()
+						sendMsg := msg
+						sendMsg.IsOwner = false
+						client.Conn.WriteJSON(sendMsg)
+					}(c)
 				}
 			}
+			chatMutex.RUnlock()
 		}
 	}
 }
 
-func broadcastUserStatus(userID string, isOnline bool) {
-	var lastSeen time.Time
-    var username string
-    err := db.QueryRow(`
-        SELECT u.username, us.last_seen 
-        FROM user_status us
-		JOIN users u ON us.user_id = u.id 
-        WHERE us.user_id = ?`, userID).Scan(&username, &lastSeen)
-    if err != nil {
-        log.Printf("Error getting user status: %v", err)
-        return
-    }
+// Improved status broadcasting
+func broadcastUserStatusToAll(userID string, isOnline bool) {
+	chatMutex.RLock()
+	defer chatMutex.RUnlock()
 
-    status := map[string]interface{}{
-        "type":      "status_update",
-        "user_id":   userID,
-        "username":  username,
-        "is_online": isOnline,
-		"last_seen":  lastSeen.Format(time.RFC3339),
-        "timestamp": time.Now().Unix(),
-    }
+	// Get all online users
+	onlineUsers := make(map[string]bool)
+	for uid := range clients {
+		onlineUsers[uid] = true
+	}
 
-    chatMutex.RLock()
-    defer chatMutex.RUnlock()
+	// Broadcast to all connected clients
+	for uid, userClients := range clients {
+		// Only send to users who are not the one changing status
+		if uid == userID {
+			continue
+		}
 
-    for _, userClients := range clients {
-        for _, client := range userClients {
-            if err := client.Conn.WriteJSON(status); err != nil {
-            }
-        }
-    }
+		for _, client := range userClients {
+			status := map[string]interface{}{
+				"type":      "status_update",
+				"user_id":   userID,
+				"is_online": isOnline,
+				"timestamp": time.Now().Unix(),
+			}
+			go func(c *Client) {
+				c.writeMu.Lock()
+				defer c.writeMu.Unlock()
+				c.Conn.WriteJSON(status)
+			}(client)
+		}
+	}
 }
 
+// Simplified status update
 func updateUserStatus(userID string, online bool) {
 	_, err := db.Exec(`
 		INSERT OR REPLACE INTO user_status 

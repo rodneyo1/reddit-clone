@@ -36,21 +36,15 @@ func main() {
 	http.HandleFunc("/api/filter", handlers.FilterHandler)
 	http.HandleFunc("/api/like", handlers.LikeHandler)
 	http.HandleFunc("/api/comment", handlers.CommentHandler)
-	http.HandleFunc("/api/comments", handlers.GetCommentsHandler) 
+	http.HandleFunc("/api/comments", handlers.GetCommentsHandler)
 	http.HandleFunc("/ws/chat", handlers.ChatWebsocketHandler)
-http.HandleFunc("/api/chat/users", handlers.ChatUsersHandler)
-http.HandleFunc("/api/chat/messages", handlers.ChatMessagesHandler)
-http.HandleFunc("/api/profile/update", handlers.UpdateProfileHandler)
-
-
+	http.HandleFunc("/api/chat/users", handlers.ChatUsersHandler)
+	http.HandleFunc("/api/chat/messages", handlers.ChatMessagesHandler)
+	http.HandleFunc("/api/profile/update", handlers.UpdateProfileHandler)
 	http.HandleFunc("/api/comment/like", handlers.CommentLikeHandler)
 
-
-	// Initialize the database and OAuth providers
+	// Initialize the database
 	handlers.InitDB()
-	handlers.InitGoogleOAuth()
-	handlers.InitGithubOAuth()
-
 	go handlers.StartChatManager()
 
 	// Start the server

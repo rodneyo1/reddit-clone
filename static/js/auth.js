@@ -17,27 +17,10 @@ async function fetchLoginContent() {
         <div class="auth-container">
         <h2>Real-Time Forum</h2>
             <h1>Login</h1>
-
-            <!-- Google Sign-In Button -->
-            <a href="/auth/google/login" class="google-btn">
-                <img src="/src/google.jpeg" alt="Google Logo">
-                <span>Sign in with Google</span>
-            </a>
-
-            <!-- GitHub Sign-In Button -->
-            <a href="/auth/github/login" class="github-btn">
-                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo">
-                <span>Sign in with GitHub</span>
-            </a>
-
-            <div class="oauth-divider">
-                <span>or</span>
-            </div>
-
             <!-- Traditional Login Form -->
             <form id="login-form" onsubmit="handleLogin(event)">
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
+                <label for="identifier">Email or Nickname:</label>
+                <input type="text" id="identifier" name="identifier" placeholder="Enter email or nickname" required>
                 <br>
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
@@ -54,68 +37,66 @@ async function fetchRegisterContent() {
     return `
         <div class="auth-container">
             <h1>Register</h1>
-
-            <!-- Google Sign-In Button -->
-            <a href="/auth/google/login" class="google-btn">
-                <img src="/src/google.jpeg" alt="Google Logo">
-                <span>Sign up with Google</span>
-            </a>
-
-            <!-- GitHub Sign-In Button -->
-            <a href="/auth/github/login" class="github-btn">
-                <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub Logo">
-                <span>Sign up with GitHub</span>
-            </a>
-
-            <div class="oauth-divider">
-                <span>or</span>
-            </div>
-
             <!-- Traditional Registration Form -->
            <form id="registerForm" onsubmit="handleRegister(event)">
-    <label for="email">Email:</label>
-    <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
-    <br>
+                <label for="nickname">Nickname:</label>
+                <input type="text" id="nickname" name="nickname" required>
+                <br>
 
-    <label for="username">Username:</label>
-    <input type="text" id="username" name="username" required>
-    <br>
+                <label for="age">Age:</label>
+                <input type="number" id="age" name="age" min="1" required>
+                <br>
 
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required>
-    <br>
+                <div class="gender-group">
+                    <label class="gender-label">Gender:</label>
+                    <div class="gender-options">
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="male" required>
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-mars"></i>
+                            Male
+                        </label>
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="female" required>
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-venus"></i>
+                            Female
+                        </label>
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="other" required>
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-genderless"></i>
+                            Other
+                        </label>
+                    </div>
+                </div>
 
-    <label for="confirm_password">Confirm Password:</label>
-    <input type="password" id="confirm_password" name="confirm_password" required>
-    <br>
+                <label for="first_name">First Name:</label>
+                <input type="text" id="first_name" name="first_name" required>
+                <br>
 
-    <label for="nickname">Nickname:</label>
-    <input type="text" id="nickname" name="nickname" required>
-    <br>
+                <label for="last_name">Last Name:</label>
+                <input type="text" id="last_name" name="last_name" required>
+                <br>
 
-    <label for="age">Age:</label>
-    <input type="number" id="age" name="age" min="1" required>
-    <br>
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" placeholder="example@gmail.com" required>
+                <br>
 
-    <label for="gender">Gender:</label>
-    <select id="gender" name="gender" required>
-        <option value="">Select...</option>
-        <option value="male">Male</option>
-        <option value="female">Female</option>
-        <option value="other">Other</option>
-    </select>
-    <br>
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+                <br>
 
-    <label for="first_name">First Name:</label>
-    <input type="text" id="first_name" name="first_name" required>
-    <br>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+                <br>
 
-    <label for="last_name">Last Name:</label>
-    <input type="text" id="last_name" name="last_name" required>
-    <br>
+                <label for="confirm_password">Confirm Password:</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+                <br>
 
-    <button type="submit">Register</button>
-</form>
+                <button type="submit">Register</button>
+            </form>
             <p>Already have an account? <a href="#/login">Login here</a></p>
             <p class="home-link"><a href="#/">← Back to Homepage</a></p>
         </div>
@@ -130,7 +111,7 @@ async function handleLogin(event) {
         const response = await fetch('/api/login', {
             method: 'POST',
             body: JSON.stringify({
-                email: formData.get('email'),
+                identifier: formData.get('identifier'),
                 password: formData.get('password'),
             }),
             headers: {
