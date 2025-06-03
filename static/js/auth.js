@@ -47,14 +47,29 @@ async function fetchRegisterContent() {
                 <input type="number" id="age" name="age" min="1" required>
                 <br>
 
-                <label for="gender">Gender:</label>
-                <select id="gender" name="gender" required>
-                    <option value="">Select...</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                </select>
-                <br>
+                <div class="gender-group">
+                    <label class="gender-label">Gender:</label>
+                    <div class="gender-options">
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="male" required>
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-mars"></i>
+                            Male
+                        </label>
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="female" required>
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-venus"></i>
+                            Female
+                        </label>
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="other" required>
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-genderless"></i>
+                            Other
+                        </label>
+                    </div>
+                </div>
 
                 <label for="first_name">First Name:</label>
                 <input type="text" id="first_name" name="first_name" required>
