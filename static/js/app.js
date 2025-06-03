@@ -123,3 +123,82 @@ if (logo) {
         });
     }
 }
+
+// Mobile menu functionality
+function toggleMenu() {
+    const nav = document.querySelector('nav');
+    const sidebar = document.querySelector('.sidebar');
+    nav.classList.toggle('active');
+    
+    // Close sidebar if it's open
+    if (sidebar && sidebar.classList.contains('active')) {
+        sidebar.classList.remove('active');
+    }
+}
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+    const nav = document.querySelector('nav');
+    const hamburger = document.querySelector('.hamburger');
+    
+    if (nav.classList.contains('active') && 
+        !nav.contains(e.target) && 
+        !hamburger.contains(e.target)) {
+        nav.classList.remove('active');
+    }
+});
+
+// Toggle chat sidebar on mobile
+function toggleChatSidebar() {
+    const chatSidebar = document.querySelector('.chat-sidebar');
+    if (chatSidebar) {
+        chatSidebar.classList.toggle('active');
+    }
+}
+
+// Handle touch events for better mobile interaction
+document.addEventListener('DOMContentLoaded', () => {
+    // Add touch feedback to buttons and links
+    const interactiveElements = document.querySelectorAll('button, .auth-button, .post-actions button, nav a');
+    
+    interactiveElements.forEach(element => {
+        element.addEventListener('touchstart', () => {
+            element.style.opacity = '0.7';
+        });
+        
+        element.addEventListener('touchend', () => {
+            element.style.opacity = '1';
+        });
+    });
+
+    // Handle swipe gestures for mobile navigation
+    let touchStartX = 0;
+    let touchEndX = 0;
+    
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+    
+    document.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    });
+    
+    function handleSwipe() {
+        const swipeThreshold = 50;
+        const nav = document.querySelector('nav');
+        const chatSidebar = document.querySelector('.chat-sidebar');
+        
+        // Swipe right to open nav menu
+        if (touchEndX - touchStartX > swipeThreshold) {
+            nav.classList.add('active');
+        }
+        // Swipe left to close nav menu
+        else if (touchStartX - touchEndX > swipeThreshold) {
+            nav.classList.remove('active');
+            if (chatSidebar) {
+                chatSidebar.classList.remove('active');
+            }
+        }
+    }
+});
