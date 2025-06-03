@@ -92,11 +92,6 @@ async function fetchProfileContent() {
     </label>
 
     <label>
-        Avatar URL:
-        <input type="url" name="avatar_url" value="${profileData.AvatarURL || ''}">
-    </label>
-
-    <label>
         Age:
         <input type="number" name="age" min="0" value="${profileData.Age || ''}">
     </label>
@@ -110,7 +105,6 @@ async function fetchProfileContent() {
             <option value="Other" ${profileData.Gender === "Other" ? "selected" : ""}>Other</option>
         </select>
     </label>
-
     <label>
         First Name:
         <input type="text" name="first_name" value="${profileData.FirstName || ''}">
