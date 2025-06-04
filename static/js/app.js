@@ -60,6 +60,9 @@ async function render(path) {
                     app.innerHTML = await fetchRegisterContent();
                     break;
                 case '/profile':
+                    if (!isLoggedIn){
+                        window.location.hash = '/login';
+                    }
                     case '/profile':
                     app.innerHTML = await fetchProfileContent();
                     window.attachProfileFormHandler();
@@ -71,6 +74,9 @@ async function render(path) {
                     return
                     break;
                 case '/home':
+                    if (!isLoggedIn){
+                        window.location.hash = '/login';
+                    }
                     case '/filter':
                     app.innerHTML = await fetchHomeContent();
                     document.getElementById('post-form')?.addEventListener('submit', window.handlePostSubmit);
