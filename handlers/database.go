@@ -23,7 +23,7 @@ func InitDB() {
     }
 
     // Enable foreign key support
-    _, err = db.Exec("PRAGMA foreign_keys = WAL")
+    // _, err = db.Exec("PRAGMA foreign_keys = WAL")
     if err != nil {
         log.Fatal("Could not enable foreign key support:", err)
     }
@@ -150,16 +150,18 @@ func InitDB() {
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_user_status ON user_status(user_id);
     `
-
+ _, err = db.Exec(createTable)
+    if err != nil {
+        log.Fatal("Database initialization error:", err)
+    }
+// Initialize user status table
     _, err = db.Exec(`
    INSERT OR IGNORE INTO user_status (user_id, is_online, last_seen)
     SELECT id, FALSE, datetime('now') FROM users
 `)
+ 
 if err != nil {
     log.Printf("Error initializing user status: %v", err)
 }
-    _, err = db.Exec(createTable)
-    if err != nil {
-        log.Fatal("Database initialization error:", err)
-    }
+  
 }
