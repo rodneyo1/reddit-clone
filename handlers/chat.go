@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -169,7 +169,7 @@ func handleIncomingMessages(client *Client) {
 				if !ok {
 					continue
 				}
-			
+
 				// Update messages as read in database
 				_, err := db.Exec(`
 					UPDATE messages 
@@ -180,7 +180,7 @@ func handleIncomingMessages(client *Client) {
 					log.Printf("Error marking messages as read: %v", err)
 					continue
 				}
-			
+
 				// Notify the sender that their messages were read
 				chatMutex.RLock()
 				if senderClients, ok := clients[senderID]; ok {
@@ -372,7 +372,17 @@ func ChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	offset, _ := fmt.Sscanf(r.URL.Query().Get("offset"), "%d")
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	// Default to 10 messages if no limit specified
+	if limit <= 0 {
+		limit = 10
+	}
+	// Cap maximum limit to prevent excessive loads
+	if limit > 50 {
+		limit = 50
+	}
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -397,11 +407,11 @@ func ChatMessagesHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE (m.sender_id = ? AND m.recipient_id = ?)
 			OR (m.sender_id = ? AND m.recipient_id = ?)
 		ORDER BY m.created_at DESC
-		LIMIT 10 OFFSET ?`,
+		LIMIT ? OFFSET ?`,
 		currentUserID,
 		currentUserID, recipientID,
 		recipientID, currentUserID,
-		offset)
+		limit, offset)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return

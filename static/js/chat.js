@@ -8,6 +8,9 @@ let typingTimeout = null;
 let typingUsers = new Map();
 let lastTypingTime = 0;
 const TYPING_TIMER_LENGTH = 3000; // How long to wait after last keystroke
+let loadedMessageIds = new Set();
+const INITIAL_MESSAGE_COUNT = 30; // Number of messages to load initially
+const MESSAGES_PER_SCROLL = 20;  // Number of messages to load per scroll
 
 // Initialize chat functionality
 function initChat() {
@@ -122,6 +125,7 @@ async function openChat(userId, username) {
     currentRecipient = userId;
     messageOffset = 0;
     hasMoreMessages = true;
+    loadedMessageIds.clear();
     
     // Reset typing indicators
     const chatTypingIndicator = document.getElementById('chat-typing-indicator');
@@ -143,63 +147,97 @@ async function openChat(userId, username) {
     }
     
     // Load initial messages
-    await loadMessages();
+    await loadMessages(true);
     
-     // Mark messages as read via WebSocket
-     if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+    // Mark messages as read via WebSocket
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
         chatSocket.send(JSON.stringify({
             type: 'mark_read',
-            sender_id: userId  // The sender whose messages we're marking as read
+            sender_id: userId
         }));
     }
-
-    // Scroll to bottom
-    setTimeout(() => {
-        const messagesList = document.getElementById('messages-list');
-        messagesList.scrollTop = messagesList.scrollHeight;
-    }, 100);
 }
 
 // Load messages with pagination
-async function loadMessages() {
+async function loadMessages(isInitialLoad = false) {
     if (isLoadingMessages || !hasMoreMessages) return;
     
     isLoadingMessages = true;
     try {
+        // Add loading indicator at top when scrolling up
+        const messagesList = document.getElementById('messages-list');
+        if (!isInitialLoad && messagesList) {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading-more';
+            loadingDiv.textContent = 'Loading more messages...';
+            messagesList.insertAdjacentElement('afterbegin', loadingDiv);
+        }
+
         const response = await fetch(`/api/chat/messages?recipient_id=${currentRecipient}&offset=${messageOffset}`);
         if (!response.ok) throw new Error('Failed to load messages');
         
         const messages = await response.json();
         
+        // Remove loading indicator if it exists
+        const loadingIndicator = document.querySelector('.loading-more');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+
         if (messages.length === 0) {
             hasMoreMessages = false;
             if (messageOffset === 0) {
-                document.getElementById('messages-list').innerHTML = '<div class="no-messages">No messages yet. Start the conversation!</div>';
+                messagesList.innerHTML = '<div class="no-messages">No messages yet. Start the conversation!</div>';
             }
             return;
         }
+
+        // Filter out any duplicate messages
+        const newMessages = messages.filter(msg => !loadedMessageIds.has(msg.id));
+        
+        if (newMessages.length === 0) {
+            hasMoreMessages = messages.length === 10; // If we got 10 messages but all were duplicates, there might be more
+            messageOffset += messages.length; // Still increment offset even if all were duplicates
+            return;
+        }
+
+        // Add new message IDs to our tracking set
+        newMessages.forEach(msg => loadedMessageIds.add(msg.id));
         
         // Reverse to show oldest first (since we load newest first)
-        messages.reverse();
+        newMessages.reverse();
         
-        const messagesHTML = messages.map(msg => createMessageElement(msg)).join('');
+        const messagesHTML = newMessages.map(msg => createMessageElement(msg)).join('');
         
         if (messageOffset === 0) {
-            document.getElementById('messages-list').innerHTML = messagesHTML;
+            messagesList.innerHTML = messagesHTML;
+            messagesList.scrollTop = messagesList.scrollHeight;
         } else {
-            const messagesList = document.getElementById('messages-list');
             const scrollHeightBefore = messagesList.scrollHeight;
             const scrollTopBefore = messagesList.scrollTop;
             
             messagesList.insertAdjacentHTML('afterbegin', messagesHTML);
             
+            // Maintain scroll position when loading older messages
             const scrollHeightAfter = messagesList.scrollHeight;
             messagesList.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
         }
         
+        // Increment offset by the number of messages we received
         messageOffset += messages.length;
+        
+        // Update hasMoreMessages based on whether we received a full page
+        hasMoreMessages = messages.length === 10;
+        
+        console.log('Loaded messages:', {
+            offset: messageOffset,
+            newMessages: newMessages.length,
+            hasMore: hasMoreMessages
+        });
     } catch (error) {
         console.error('Error loading messages:', error);
+        // Remove loading indicator on error
+        document.querySelector('.loading-more')?.remove();
     } finally {
         isLoadingMessages = false;
     }
@@ -212,27 +250,36 @@ function createMessageElement(msg) {
     const messageTime = formatMessageTime(new Date(msg.created_at));
     const username = isCurrentUser ? 'You' : (msg.sender_username || 'Unknown');
     
+    // Unique identifier for deduplication
+    const messageId = msg.id ? msg.id : `temp-${msg.temp_id || Date.now()}`;
+
+    // Check if this message should show the sender (if it's different from the previous message)
+    const previousMessage = document.querySelector(`[data-message-id="${messageId}"]`)?.previousElementSibling;
+    const showSender = !previousMessage || previousMessage.dataset.sender !== msg.sender_id;
+    
     // Handle avatar with fallbacks
     const avatarContent = msg.sender_avatar ? 
         `<img src="${msg.sender_avatar}" class="message-avatar" alt="${username}">` :
         `<div class="message-avatar-default">${username.charAt(0).toUpperCase()}</div>`;
 
-    // Unique identifier for deduplication
-    const messageId = msg.id ? msg.id : `temp-${msg.temp_id || Date.now()}`;
-
     return `
-        <div class="message ${isCurrentUser ? 'sent' : 'received'}" 
+        <div class="message ${isCurrentUser ? 'sent' : 'received'} ${showSender ? 'new-sender' : 'same-sender'}" 
              data-message-id="${messageId}"
              data-sender="${msg.sender_id}"
+             data-timestamp="${msg.created_at}"
              data-recipient="${msg.recipient_id}">
-            <div class="message-header">
-                ${avatarContent}
-                <div class="message-metadata">
-                    <span class="sender">${username}</span>
-                    <span class="time">${messageTime}</span>
+            ${showSender ? `
+                <div class="message-header">
+                    ${avatarContent}
+                    <div class="message-metadata">
+                        <span class="sender">${username}</span>
+                    </div>
                 </div>
+            ` : ''}
+            <div class="message-content">
+                ${msg.content}
+                <span class="time">${messageTime}</span>
             </div>
-            <div class="message-content">${msg.content}</div>
         </div>
     `;
 }
@@ -306,20 +353,19 @@ function sendMessage() {
 }
 
 // Handle WebSocket messages
-// Update handleWebSocketMessage
 function handleWebSocketMessage(data) {
-    console.log('Received WebSocket message:', data); // Add debug logging
+    console.log('Received WebSocket message:', data);
 
     const messageId = data.temp_id || data.id;
 
-    if (renderedMessages.has(messageId)) {
+    // Early return if message already exists
+    if (renderedMessages.has(messageId) || (data.id && loadedMessageIds.has(data.id))) {
+        console.log('Duplicate message detected, skipping:', messageId);
         return;
     }
     
     if (data.type === 'messages_read') {
-        // If we're the sender and our messages were read by the recipient
         if (data.recipient_id === currentRecipient) {
-            // Update UI to show messages as read
             document.querySelectorAll('.message.sent').forEach(msg => {
                 msg.classList.add('read');
             });
@@ -349,19 +395,19 @@ function handleWebSocketMessage(data) {
         return;
     }
     
-    // Handle message
+    // Handle chat message
     const message = data;
     const isCurrentUser = message.sender_id === getCurrentUserId();
     
-    // Only add to UI if relevant
-     if (message.temp_id) {
+    // Remove temporary message if it exists
+    if (message.temp_id) {
         const tempElement = document.querySelector(`[data-message-id="temp-${message.temp_id}"]`);
         if (tempElement) {
             tempElement.remove();
         }
     }
     
-   // Check for existing message
+    // Check for existing message
     const existing = document.querySelector(`[data-message-id="${message.id}"]`);
     if (!existing) {
         const messagesList = document.getElementById('messages-list');
@@ -369,14 +415,18 @@ function handleWebSocketMessage(data) {
         messagesList.scrollTop = messagesList.scrollHeight;
 
         renderedMessages.add(messageId);
+        
+        // Update user list and notifications
+        updateUserLastMessage(message.sender_id, message.content);
+        if (!isCurrentUser && message.sender_id !== currentRecipient) {
+            playNotificationSound();
+            incrementUnreadCount(message.sender_id);
+        }
     }
 
-    // Update user list and notifications
-    updateUserLastMessage(message.sender_id, message.content);
-    if (!isCurrentUser && message.sender_id !== currentRecipient) {
-        playNotificationSound();
-        incrementUnreadCount(message.sender_id);
-        // new Audio('/static/sounds/notification.mp3').play().catch(() => {});
+    // Add message ID to tracking sets when adding new message
+    if (data.id) {
+        loadedMessageIds.add(data.id);
     }
 }
 
@@ -461,16 +511,28 @@ function updateUserLastMessage(userId, content) {
 function setupEventListeners() {
     const messagesList = document.getElementById('messages-list');
     if (messagesList) {
-        messagesList.addEventListener('scroll', throttle(() => {
-            if (messagesList.scrollTop < 100 && hasMoreMessages && !isLoadingMessages) {
-                loadMessages();
+        let scrollTimeout;
+        messagesList.addEventListener('scroll', () => {
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
             }
-        }, 200));
+
+            scrollTimeout = setTimeout(() => {
+                // Check if we're near the top (within 100px) and should load more messages
+                if (messagesList.scrollTop < 100 && hasMoreMessages && !isLoadingMessages) {
+                    console.log('Loading more messages...', {
+                        scrollTop: messagesList.scrollTop,
+                        hasMore: hasMoreMessages,
+                        offset: messageOffset
+                    });
+                    loadMessages(false);
+                }
+            }, 150); // Debounce time of 150ms
+        });
     }
     
     const messageInput = document.getElementById('message-input');
     if (messageInput) {
-        console.log('Setting up message input listeners'); // Add debug logging
         messageInput.addEventListener('input', handleTyping);
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -478,23 +540,7 @@ function setupEventListeners() {
                 sendMessage();
             }
         });
-    } else {
-        console.log('Message input not found'); // Add debug logging
     }
-}
-
-// Throttle function to prevent spamming scroll events
-function throttle(func, limit) {
-    let inThrottle;
-    return function() {
-        const args = arguments;
-        const context = this;
-        if (!inThrottle) {
-            func.apply(context, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
-        }
-    };
 }
 
 // Get current user ID from session
@@ -624,3 +670,39 @@ function updateTypingIndicator() {
         ? `${typingUsernames} is typing...`
         : `${typingUsernames} are typing...`;
 }
+
+// Add functions to store and retrieve chat state
+function storeChatState() {
+    const chatState = {
+        messageOffset,
+        loadedMessageIds: Array.from(loadedMessageIds),
+        lastAccessed: new Date().getTime()
+    };
+    localStorage.setItem(`chat_state_${currentRecipient}`, JSON.stringify(chatState));
+}
+
+function retrieveChatState() {
+    const storedState = localStorage.getItem(`chat_state_${currentRecipient}`);
+    if (storedState) {
+        const state = JSON.parse(storedState);
+        // Only restore state if it's from the last 24 hours
+        if (new Date().getTime() - state.lastAccessed < 24 * 60 * 60 * 1000) {
+            messageOffset = state.messageOffset;
+            loadedMessageIds = new Set(state.loadedMessageIds);
+            return true;
+        }
+    }
+    return false;
+}
+
+// Add CSS for loading indicator
+const style = document.createElement('style');
+style.textContent = `
+.loading-more {
+    text-align: center;
+    padding: 10px;
+    color: #666;
+    font-style: italic;
+}
+`;
+document.head.appendChild(style);
